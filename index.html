@@ -1442,6 +1442,8 @@ function refreshUI() {
         .toString()
         .toLowerCase()
         .replace(/[أإآ]/g, 'ا')
+        .replace(/[ئ]/g, 'ي')
+        .replace(/[ؤ]/g, 'و')
         .replace(/[ة]/g, 'ه')
         .replace(/[ى]/g, 'ي')
         .replace(/[ًٌٍَُِّْـ]/g, '')
@@ -1503,40 +1505,108 @@ function refreshUI() {
 
     function parseVoiceQuantity(value) {
       const normalized = normalizeVoiceText(value);
-      const digitMatch = normalized.match(/(\d+(?:\.\d+)?)/);
-      if (digitMatch) return parseFloat(digitMatch[1]) || 1;
+      const explicitDigitMatch = normalized.match(/(?:عدد|كميه|كمية|حبه|حبة|حبات)\s*(\d+(?:\.\d+)?)/);
+      if (explicitDigitMatch) return parseFloat(explicitDigitMatch[1]) || 1;
+      const startOrEndDigitMatch = normalized.match(/^(?:\d+(?:\.\d+)?)\s|(?:^|\s)(\d+(?:\.\d+)?)$/);
+      if (startOrEndDigitMatch) return parseFloat(startOrEndDigitMatch[1] || startOrEndDigitMatch[0]) || 1;
       const wordNumbers = [
         ['عشره', 10], ['تسعه', 9], ['ثمانيه', 8], ['سبعه', 7], ['سته', 6],
         ['خمسه', 5], ['اربعه', 4], ['ثلاثه', 3], ['اثنين', 2], ['ثنين', 2],
         ['واحد', 1], ['حبه', 1], ['حبتين', 2]
       ];
-      const found = wordNumbers.find(([word]) => normalized.includes(word));
+      const explicitWord = wordNumbers.find(([word]) =>
+        new RegExp(`(?:عدد|كميه|كمية|حبه|حبة|حبات)\\s+${word}(?:\\s|$)`).test(normalized)
+      );
+      if (explicitWord) return explicitWord[1];
+      const found = wordNumbers.find(([word]) =>
+        normalized === word || normalized.startsWith(`${word} `) || normalized.endsWith(` ${word}`)
+      );
       return found ? found[1] : 1;
     }
 
     function extractVoiceProductsPhrase(text) {
-      const clean = (text || '').replace(/\s+/g, ' ').trim();
-      const match = clean.match(/(?:المنتجات|الاصناف|الأصناف|يريد|يبي|يبى|طلب|وطلب)\s+(.+?)(?=\s+(?:والدفع|الدفع|طريقة الدفع|كاش|كي\s*نت|اونلاين|أونلاين|رابط|عنوان|العنوان|رقم|هاتف)|$)/i);
+      const clean = (text || '').toString().replace(/\r/g, '\n').trim();
+      const match = clean.match(/(?:المنتجات|الاصناف|الأصناف|يريد|يبي|يبى|طلب|وطلب)\s+([\s\S]+?)(?=\s+(?:والدفع|الدفع|طريقة الدفع|كاش|كي\s*نت|اونلاين|أونلاين|رابط|عنوان|العنوان|رقم|هاتف)|$)/i);
       return match ? match[1].trim() : clean;
     }
 
-    function extractVoiceQuantityNearProduct(normalizedText, normalizedProductName) {
-      const index = normalizedText.indexOf(normalizedProductName);
-      if (index === -1) return 1;
-      const before = normalizedText.slice(Math.max(0, index - 35), index);
-      const after = normalizedText.slice(index + normalizedProductName.length, index + normalizedProductName.length + 35);
-      const beforeMatch = before.match(/(?:عدد|كميه)?\s*(\d+(?:\.\d+)?)\s*$/);
-      if (beforeMatch) return parseFloat(beforeMatch[1]) || 1;
-      const afterMatch = after.match(/^\s*(?:عدد|كميه|حبه|حبات)?\s*(\d+(?:\.\d+)?)/);
-      if (afterMatch) return parseFloat(afterMatch[1]) || 1;
-      const wordQty = parseVoiceQuantity(`${before} ${after}`);
-      return wordQty || 1;
+    const voiceProductStopWords = new Set([
+      'عدد', 'كميه', 'كمية', 'حبه', 'حبة', 'حبات', 'واحد', 'اثنين', 'ثنين',
+      'ثلاثه', 'اربعه', 'خمسه', 'سته', 'سبعه', 'ثمانيه', 'تسعه', 'عشره',
+      'اريد', 'ابي', 'ابغى', 'يبي', 'يبى', 'طلب', 'اطلب', 'والمنتجات', 'المنتجات',
+      'درزن'
+    ]);
+
+    function getVoiceProductTokens(value) {
+      return normalizeVoiceText(value)
+        .split(' ')
+        .map(token => token.trim())
+        .filter(token => token.length > 1 && !/^\d+(?:\.\d+)?$/.test(token) && !voiceProductStopWords.has(token));
+    }
+
+    function getVoiceTokenDistance(a, b) {
+      if (a === b) return 0;
+      const rows = a.length + 1;
+      const cols = b.length + 1;
+      const dp = Array.from({ length: rows }, () => Array(cols).fill(0));
+      for (let i = 0; i < rows; i++) dp[i][0] = i;
+      for (let j = 0; j < cols; j++) dp[0][j] = j;
+      for (let i = 1; i < rows; i++) {
+        for (let j = 1; j < cols; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(
+            dp[i - 1][j] + 1,
+            dp[i][j - 1] + 1,
+            dp[i - 1][j - 1] + cost
+          );
+        }
+      }
+      return dp[a.length][b.length];
+    }
+
+    function areVoiceTokensSimilar(a, b) {
+      if (!a || !b) return false;
+      if (a === b) return true;
+      if (a.length >= 3 && b.length >= 3 && (a.includes(b) || b.includes(a))) return true;
+      return Math.max(a.length, b.length) >= 4 && getVoiceTokenDistance(a, b) <= 1;
+    }
+
+    function splitVoiceProductSegments(text) {
+      const productsPhrase = extractVoiceProductsPhrase(text)
+        .replace(/(\d+(?:\.\d+)?)\s+(?=(?:درزن|كوكيز|فطاير|فطائر|كيك|بيتزا|مشروب|عصير|سلطه|سلطة|صحن|طبق|علبه|علبة|ساندويتش|[ء-ي]{3,}\s+[ء-ي]{3,}))/g, '$1\n')
+        .replace(/(^|\s)(واحد|وحده|حبه|حبتين|اثنين|ثنين|ثنتين|ثلاثه|اربعه|خمسه|سته|سبعه|ثمانيه|تسعه|عشره)\s+(?=(?:درزن|كوكيز|فطاير|فطائر|كيك|بيتزا|مشروب|عصير|سلطه|سلطة|صحن|طبق|علبه|علبة|ساندويتش|[ء-ي]{3,}\s+[ء-ي]{3,}))/g, '$1$2\n');
+
+      return productsPhrase
+        .split(/\n+|،|,|\s+و\s+/)
+        .map(segment => segment.replace(/^(?:المنتجات|الاصناف|الأصناف|يريد|يبي|يبى|طلب|وطلب|ابي|ابغى)\s+/i, '').trim())
+        .filter(segment => {
+          const normalized = normalizeVoiceText(segment);
+          return normalized.length > 1 && !/^(الدفع|طريقة الدفع|كاش|كي نت|اونلاين|رابط)$/.test(normalized);
+        });
+    }
+
+    function extractVoiceQuantityFromSegment(segment) {
+      const normalized = normalizeVoiceText(segment);
+      const explicitQuantity = normalized.match(/(?:عدد|كميه|كمية|حبه|حبة|حبات)\s*(\d+(?:\.\d+)?)/);
+      if (explicitQuantity) return getSafeVoiceQuantity(explicitQuantity[1]);
+      const endQuantity = normalized.match(/(\d+(?:\.\d+)?)\s*$/);
+      if (endQuantity) return getSafeVoiceQuantity(endQuantity[1]);
+      const startQuantity = normalized.match(/^(\d+(?:\.\d+)?)\s+/);
+      if (startQuantity) return getSafeVoiceQuantity(startQuantity[1]);
+      return getSafeVoiceQuantity(parseVoiceQuantity(normalized));
+    }
+
+    function getSafeVoiceQuantity(value) {
+      const qty = parseFloat(value);
+      if (!Number.isFinite(qty) || qty <= 0) return 1;
+      return qty > 99 ? 1 : qty;
     }
 
     function scoreVoiceProductMatch(segment, product) {
       const normalizedSegment = normalizeVoiceText(segment);
       if (normalizedSegment.length < 2) return 0;
       const productNames = [product.nameAr, product.nameEn].filter(Boolean).map(normalizeVoiceText).filter(Boolean);
+      const segmentTokens = getVoiceProductTokens(segment);
       let bestScore = 0;
       productNames.forEach(name => {
         if (!name) return;
@@ -1544,9 +1614,8 @@ function refreshUI() {
           bestScore = Math.max(bestScore, 1);
           return;
         }
-        const segmentWords = normalizedSegment.split(' ').filter(word => word.length > 1);
-        const nameWords = name.split(' ').filter(word => word.length > 1);
-        const hits = segmentWords.filter(word => nameWords.includes(word)).length;
+        const nameWords = getVoiceProductTokens(name);
+        const hits = nameWords.filter(nameWord => segmentTokens.some(segmentWord => areVoiceTokensSimilar(segmentWord, nameWord))).length;
         const score = nameWords.length ? hits / nameWords.length : 0;
         bestScore = Math.max(bestScore, score);
       });
@@ -1554,34 +1623,26 @@ function refreshUI() {
     }
 
     function extractVoiceProducts(text) {
-      const normalizedText = normalizeVoiceText(text);
-      const productsPhrase = extractVoiceProductsPhrase(text);
       const matches = [];
       const matchedIds = new Set();
-      const sortedProducts = [...allProducts].sort((a, b) => String(b.nameAr || '').length - String(a.nameAr || '').length);
-
-      sortedProducts.forEach(product => {
-        const names = [product.nameAr, product.nameEn].filter(Boolean).map(normalizeVoiceText).filter(name => name.length > 1);
-        const matchedName = names.find(name => normalizedText.includes(name));
-        if (matchedName && !matchedIds.has(product.id)) {
-          matchedIds.add(product.id);
-          matches.push({
-            product,
-            quantity: extractVoiceQuantityNearProduct(normalizedText, matchedName)
-          });
-        }
-      });
-
       const unmatchedSegments = [];
-      productsPhrase.split(/\s+و\s+|،|,/).map(part => part.trim()).filter(Boolean).forEach(segment => {
-        if (matches.some(match => normalizeVoiceText(segment).includes(normalizeVoiceText(match.product.nameAr)))) return;
-        const best = allProducts
+      const segments = splitVoiceProductSegments(text);
+
+      segments.forEach(segment => {
+        const rankedMatches = allProducts
           .filter(product => !matchedIds.has(product.id))
-          .map(product => ({ product, score: scoreVoiceProductMatch(segment, product) }))
-          .sort((a, b) => b.score - a.score)[0];
-        if (best && best.score >= 0.65) {
+          .map(product => ({
+            product,
+            score: scoreVoiceProductMatch(segment, product),
+            tokenCount: getVoiceProductTokens(`${product.nameAr || ''} ${product.nameEn || ''}`).length,
+            nameLength: String(product.nameAr || product.nameEn || '').length
+          }))
+          .sort((a, b) => b.score - a.score || b.tokenCount - a.tokenCount || b.nameLength - a.nameLength);
+
+        const best = rankedMatches[0];
+        if (best && best.score >= 0.5) {
           matchedIds.add(best.product.id);
-          matches.push({ product: best.product, quantity: parseVoiceQuantity(segment) });
+          matches.push({ product: best.product, quantity: extractVoiceQuantityFromSegment(segment) });
         } else if (!/(منتجات|اصناف|الدفع|عنوان|رقم)/.test(normalizeVoiceText(segment))) {
           unmatchedSegments.push(segment);
         }
@@ -1591,7 +1652,7 @@ function refreshUI() {
     }
 
     function addVoiceProductToOrder(product, quantity) {
-      const qty = parseFloat(quantity) || 1;
+      const qty = getSafeVoiceQuantity(quantity);
       const existingItem = currentOrder.items.find(item => item.productId === product.id);
       if (existingItem) {
         existingItem.quantity += qty;
