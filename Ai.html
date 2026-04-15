@@ -150,6 +150,59 @@
       word-break: break-word;
     }
 
+    .speech-guide {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 22px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      text-align: right;
+    }
+
+    .speech-guide-title {
+      font-weight: 900;
+      color: #9a3412;
+      margin-bottom: 10px;
+      line-height: 1.7;
+    }
+
+    .guide-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.72);
+      color: #7c2d12;
+      font-weight: 900;
+      margin-top: 7px;
+      border: 1px solid transparent;
+    }
+
+    .guide-row .check {
+      width: 25px;
+      height: 25px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      background: #fde7c7;
+      color: #b45309;
+      font-size: 14px;
+      flex: 0 0 auto;
+    }
+
+    .guide-row.done {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #bbf7d0;
+    }
+
+    .guide-row.done .check {
+      background: #16a34a;
+      color: #ffffff;
+    }
+
     textarea, input, select {
       width: 100%;
       border: 1px solid var(--line);
@@ -368,13 +421,22 @@
         <div class="mic-wrap">
           <button id="micBtn" class="mic-btn" onclick="toggleMic()" type="button">🎙️</button>
         </div>
+        <div class="speech-guide">
+          <div class="speech-guide-title">ارجو الالتزام بالنمط التالي اثناء الكلام:</div>
+          <div class="guide-row" data-guide-key="customerName"><span>فاتورة باسم:</span><span class="check">○</span></div>
+          <div class="guide-row" data-guide-key="phone"><span>رقم الهاتف:</span><span class="check">○</span></div>
+          <div class="guide-row" data-guide-key="address"><span>العنوان:</span><span class="check">○</span></div>
+          <div class="guide-row" data-guide-key="deliveryPrice"><span>سعر التوصيل:</span><span class="check">○</span></div>
+          <div class="guide-row" data-guide-key="products"><span>المنتجات:</span><span class="check">○</span></div>
+          <div class="guide-row" data-guide-key="paymentMethod"><span>طريقة الدفع:</span><span class="check">○</span></div>
+        </div>
         <div id="status" class="status">جاهز. اضغط المايك أو اكتب الطلب.</div>
         <div style="margin-top: 14px;">
           <div style="font-weight: 900; margin-bottom: 8px;">الكلام المسجل</div>
           <div id="transcript" class="transcript"><span class="muted">سيظهر الكلام هنا أثناء التسجيل...</span></div>
         </div>
         <div style="margin-top: 16px;">
-          <textarea id="manualInput" placeholder="اكتب اسم العميل، الهاتف، العنوان، المنتجات، طريقة الدفع وسعر التوصيل"></textarea>
+          <textarea id="manualInput" oninput="updateVoiceGuideProgress()" placeholder="اكتب اسم العميل، الهاتف، العنوان، المنتجات، طريقة الدفع وسعر التوصيل"></textarea>
         </div>
         <div id="issuesBox" class="issue-box" style="margin-top: 12px;"></div>
         <button class="primary-btn" style="margin-top: 14px;" onclick="submitCommand()">إرسال وتحليل الطلب</button>
@@ -770,9 +832,36 @@
       const interimText = interimTranscript.trim();
       if (!finalText && !interimText) {
         el.innerHTML = '<span class="muted">سيظهر الكلام هنا أثناء التسجيل...</span>';
+        updateVoiceGuideProgress();
         return;
       }
       el.innerHTML = `${escapeHtml(finalText)} ${interimText ? `<span class="muted">${escapeHtml(interimText)}</span>` : ''}`;
+      updateVoiceGuideProgress();
+    }
+
+    function getCurrentCommandText() {
+      const manualText = document.getElementById('manualInput')?.value || '';
+      return `${finalTranscript} ${interimTranscript} ${manualText}`.trim();
+    }
+
+    function updateVoiceGuideProgress() {
+      const text = getCurrentCommandText();
+      const checks = {
+        customerName: Boolean(extractVoiceCustomerName(text)),
+        phone: Boolean(extractVoicePhone(text)),
+        address: Boolean(extractVoiceAddress(text)) || isVoicePickupAddress(text),
+        deliveryPrice: extractVoiceDeliveryPrice(text) > 0,
+        products: Boolean(extractVoiceProductsPhrase(text) && extractVoiceProductsPhrase(text).trim().length > 1),
+        paymentMethod: /(طريقة\s*الدفع|الدفع|كاش|كي\s*نت|كي-نت|اونلاين|أونلاين|رابط|لينك|online|knet)/i.test(normalizeVoiceText(text))
+      };
+
+      Object.entries(checks).forEach(([key, done]) => {
+        const row = document.querySelector(`[data-guide-key="${key}"]`);
+        if (!row) return;
+        row.classList.toggle('done', done);
+        const check = row.querySelector('.check');
+        if (check) check.textContent = done ? '✓' : '○';
+      });
     }
 
     function startListening() {
@@ -836,11 +925,148 @@
       analyzeCommand();
     }
 
+    function getVoicePhoneSection(text) {
+      const clean = convertToEnglishNumbers(text || '').replace(/\s+/g, ' ').trim();
+      const phoneLabel = '(?:رقم\\s*(?:الهاتف|هاتف|التلفون|تلفون|التليفون|تليفون|الجوال|جوال|الموبايل|موبايل|النقال|نقال|العميل|الزبون)?|هاتف(?:ه|ها)?|تلفون(?:ه|ها)?|تليفون(?:ه|ها)?|جوال(?:ه|ها)?|موبايل(?:ه|ها)?|نقال(?:ه|ها)?)';
+      const stopLabel = '(?=\\s+(?:عنوان|العنوان|عنوانه|عنوانها|منطقه|منطقة|سعر\\s*(?:التوصيل|توصيل)|المنتجات|والمنتجات|الاصناف|الأصناف|طريقة\\s*الدفع|الدفع|كاش|كي\\s*نت|اونلاين|أونلاين|رابط|لينك)|$)';
+      const match = clean.match(new RegExp(`${phoneLabel}\\s*[:：\\-]?\\s*([\\s\\S]+?)${stopLabel}`, 'i'));
+      return match ? match[1].trim() : '';
+    }
+
+    function getSpokenDigit(token) {
+      const normalized = normalizeVoiceText(token);
+      const digitWords = {
+        '0': ['0', 'صفر', 'سفر', 'زيرو', 'zero'],
+        '1': ['1', 'واحد', 'واحده', 'احد', 'ون', 'one'],
+        '2': ['2', 'اثنين', 'اثنان', 'ثنين', 'ثنتين', 'اتنين', 'تو', 'two'],
+        '3': ['3', 'ثلاثه', 'ثلاث', 'تلاته', 'تلات', 'ثري', 'three'],
+        '4': ['4', 'اربعه', 'اربع', 'فور', 'four'],
+        '5': ['5', 'خمسه', 'خمس', 'فايف', 'five'],
+        '6': ['6', 'سته', 'ست', 'سكس', 'six'],
+        '7': ['7', 'سبعه', 'سبع', 'سفن', 'seven'],
+        '8': ['8', 'ثمانيه', 'ثماني', 'ثمنيه', 'تمنيه', 'ثمان', 'ايت', 'eight'],
+        '9': ['9', 'تسعه', 'تسع', 'ناين', 'nine']
+      };
+      return Object.entries(digitWords).find(([, words]) => words.includes(normalized))?.[0] || '';
+    }
+
+    function getSpokenCount(token) {
+      const normalized = normalizeVoiceText(token);
+      const counts = {
+        2: ['2', 'اثنين', 'ثنين', 'ثنتين', 'اتنين', 'مرتين'],
+        3: ['3', 'ثلاثه', 'ثلاث', 'تلاته', 'تلات', 'ثلاث مرات'],
+        4: ['4', 'اربعه', 'اربع'],
+        5: ['5', 'خمسه', 'خمس']
+      };
+      return Number(Object.entries(counts).find(([, words]) => words.includes(normalized))?.[0] || 0);
+    }
+
+    function getRepeatedSpokenDigit(token) {
+      const normalized = normalizeVoiceText(token);
+      const dualWords = {
+        '00': ['صفرين', 'صفرتين', 'زيروين', 'زيروتين'],
+        '11': ['واحدين', 'ونين'],
+        '22': ['اثنينات', 'ثنينات', 'توتين'],
+        '33': ['ثلاثتين', 'ثلاثات', 'تلاتات'],
+        '44': ['اربعتين', 'اربعات', 'فورين'],
+        '55': ['خمستين', 'خمسات', 'فايفين'],
+        '66': ['ستتين', 'ستات', 'سكسين'],
+        '77': ['سبعتين', 'سبعات', 'سفنين'],
+        '88': ['ثمانيتين', 'ثمانيات', 'ايتين'],
+        '99': ['تسعتين', 'تسعات', 'ناينين']
+      };
+      return Object.entries(dualWords).find(([, words]) => words.includes(normalized))?.[0] || '';
+    }
+
+    function getPluralSpokenDigit(token) {
+      const normalized = normalizeVoiceText(token);
+      const pluralWords = {
+        '0': ['اصفار', 'زيروات'],
+        '1': ['واحدات', 'ونات'],
+        '2': ['اثنينات', 'ثنينات'],
+        '3': ['ثلاثات', 'تلاتات'],
+        '4': ['اربعات', 'فورات'],
+        '5': ['خمسات'],
+        '6': ['ستات'],
+        '7': ['سبعات'],
+        '8': ['ثمانيات'],
+        '9': ['تسعات']
+      };
+      return Object.entries(pluralWords).find(([, words]) => words.includes(normalized))?.[0] || '';
+    }
+
+    function getSpokenTensDigits(token) {
+      const normalized = normalizeVoiceText(token);
+      const tens = {
+        '20': ['عشرين'],
+        '30': ['ثلاثين', 'تلاتين'],
+        '40': ['اربعين'],
+        '50': ['خمسين'],
+        '60': ['ستين'],
+        '70': ['سبعين'],
+        '80': ['ثمانين', 'تمانين'],
+        '90': ['تسعين']
+      };
+      return Object.entries(tens).find(([, words]) => words.includes(normalized))?.[0] || '';
+    }
+
+    function parseSpokenPhoneDigits(value) {
+      const normalized = normalizeVoiceText(value || '');
+      const tokens = normalized.split(' ').filter(Boolean);
+      const digits = [];
+
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        if (/^\d+$/.test(token)) {
+          digits.push(...token.split(''));
+          continue;
+        }
+
+        const count = getSpokenCount(token);
+        const pluralDigit = count ? getPluralSpokenDigit(tokens[i + 1] || '') : '';
+        if (count && pluralDigit) {
+          digits.push(...Array(count).fill(pluralDigit));
+          i += 1;
+          continue;
+        }
+
+        const repeated = getRepeatedSpokenDigit(token);
+        if (repeated) {
+          digits.push(...repeated.split(''));
+          continue;
+        }
+
+        const tensDigits = getSpokenTensDigits(token);
+        if (tensDigits) {
+          digits.push(...tensDigits.split(''));
+          continue;
+        }
+
+        const digit = getSpokenDigit(token);
+        if (digit) digits.push(digit);
+      }
+
+      return digits.join('');
+    }
+
+    function extractSpokenVoicePhone(text) {
+      const phoneSection = getVoicePhoneSection(text);
+      const parsed = parseSpokenPhoneDigits(phoneSection || text);
+      if (!parsed) return '';
+      if (parsed.startsWith('965') && parsed.length >= 11) return parsed.slice(0, 11);
+      if (parsed.length > 8) return parsed.slice(-8);
+      return parsed;
+    }
+
     function extractVoicePhone(text) {
       const converted = convertToEnglishNumbers(text || '');
       const phonePattern = /(?:رقم(?:ه|ها)?|هاتف(?:ه|ها)?|تلفون(?:ه|ها)?|تليفون(?:ه|ها)?|موبايل(?:ه|ها)?|نقال(?:ه|ها)?)[^\d]*(\+?965[\s-]*)?([0-9\s-]{8,})/i;
       const phoneMatch = converted.match(phonePattern);
       let digits = phoneMatch ? `${phoneMatch[1] || ''}${phoneMatch[2] || ''}`.replace(/\D/g, '') : '';
+      if (!digits) {
+        const spokenDigits = extractSpokenVoicePhone(text);
+        if (spokenDigits.length === 8 || (spokenDigits.startsWith('965') && spokenDigits.length === 11)) digits = spokenDigits;
+      }
       if (!digits) {
         const phoneCandidates = Array.from(converted.matchAll(/(?:^|[^\d])(\+?965[\s-]*)?([0-9][0-9\s-]{6,}[0-9])(?=$|[^\d])/g))
           .map(match => `${match[1] || ''}${match[2] || ''}`.replace(/\D/g, ''))
@@ -919,13 +1145,31 @@
         .trim();
     }
 
+    function getVoiceAddressSection(text) {
+      const clean = (text || '').replace(/\s+/g, ' ').trim();
+      const deliveryStop = getVoiceDeliveryStopPattern();
+      const addressStop = new RegExp(`(?:عنوان(?:ه|ها)?|العنوان|منطقه|منطقة|التوصيل الي|توصيل الي)\\s*[:：\\-]?\\s+(.+?)(?=\\s+(?:والمنتجات|المنتجات|يريد|يبي|يبى|وطلب|الدفع|طريقة الدفع|كاش|كي|اونلاين|أونلاين|${deliveryStop})|$)`, 'i');
+      const addressMatch = clean.match(addressStop);
+      return stripVoiceDeliveryPriceFromText(addressMatch ? addressMatch[1].trim() : '');
+    }
+
+    function isVoicePickupAddress(text) {
+      const normalized = normalizeVoiceText(getVoiceAddressSection(text));
+      return /^(استلام|استلم|استلام من الفرع|استلام فرع|استلام بالمحل|بالمحل|من الفرع|بيك اب|بيكاب|pickup)(?:\s|$)/.test(normalized);
+    }
+
+    function extractVoiceOrderType(text, address = null) {
+      const normalized = normalizeVoiceText(text);
+      if (isVoicePickupAddress(text) || /(?:نوع الطلب|الطلب)\s*(?:استلام|بيك اب|بيكاب|pickup)/.test(normalized)) return 'pickup';
+      if (address || /(?:توصيل|دليفري|عنوان(?:ه|ها)?|العنوان|منطقه|منطقة)/.test(normalized)) return 'delivery';
+      return 'pickup';
+    }
+
     function extractVoiceAddress(text) {
       const clean = (text || '').replace(/\s+/g, ' ').trim();
+      if (isVoicePickupAddress(clean)) return null;
       const areaFromKnownList = areas.find(area => normalizeVoiceText(clean).includes(normalizeVoiceText(area)));
-      const deliveryStop = getVoiceDeliveryStopPattern();
-      const addressStop = new RegExp(`(?:عنوان(?:ه|ها)?|العنوان|منطقه|منطقة|التوصيل الي|توصيل الي)\\s+(.+?)(?=\\s+(?:والمنتجات|المنتجات|يريد|يبي|يبى|وطلب|الدفع|طريقة الدفع|كاش|كي|اونلاين|أونلاين|${deliveryStop})|$)`, 'i');
-      const addressMatch = clean.match(addressStop);
-      const rawDetails = stripVoiceDeliveryPriceFromText(addressMatch ? addressMatch[1].trim() : '');
+      const rawDetails = getVoiceAddressSection(clean);
       const area = areaFromKnownList || rawDetails.split(' ')[0] || '';
       const areaWordCount = normalizeVoiceText(area).split(' ').filter(Boolean).length;
       let details = rawDetails;
@@ -1170,6 +1414,7 @@
       const productsResult = extractVoiceProducts(fullText);
       const address = extractVoiceAddress(fullText);
       const deliveryPrice = extractVoiceDeliveryPrice(fullText);
+      const orderType = extractVoiceOrderType(fullText, address);
       const existingCustomer = findCustomerByVoicePhone(phone);
       const customerName = extractVoiceCustomerName(fullText) || existingCustomer?.name || '';
 
@@ -1188,9 +1433,9 @@
 
       currentOrder = createEmptyOrder();
       currentOrder.customer = { name: customerName, phone: phone.full, existingId: existingCustomer?.id || '' };
-      currentOrder.selectedAddress = address;
-      currentOrder.deliveryPrice = deliveryPrice;
-      currentOrder.orderType = address || /(توصيل|دليفري|عنوان)/.test(normalizeVoiceText(fullText)) ? 'delivery' : 'pickup';
+      currentOrder.selectedAddress = orderType === 'pickup' ? null : address;
+      currentOrder.deliveryPrice = orderType === 'pickup' ? 0 : deliveryPrice;
+      currentOrder.orderType = orderType;
       currentOrder.paymentMethod = extractVoicePaymentMethod(fullText);
       productsResult.matches.forEach(item => addProductToOrder(item.product, item.quantity));
 
