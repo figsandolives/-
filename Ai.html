@@ -844,6 +844,11 @@
       return `${finalTranscript} ${interimTranscript} ${manualText}`.trim();
     }
 
+    function hasVoiceProductsKeyword(text) {
+      const normalized = normalizeVoiceText(text || '');
+      return /(?:^|\s)(?:و?المنتجات|و?منتجات|و?الاصناف|و?اصناف)(?:\s|$)/.test(normalized);
+    }
+
     function updateVoiceGuideProgress() {
       const text = getCurrentCommandText();
       const checks = {
@@ -851,7 +856,7 @@
         phone: Boolean(extractVoicePhone(text)),
         address: Boolean(extractVoiceAddress(text)) || isVoicePickupAddress(text),
         deliveryPrice: extractVoiceDeliveryPrice(text) > 0,
-        products: Boolean(extractVoiceProductsPhrase(text) && extractVoiceProductsPhrase(text).trim().length > 1),
+        products: hasVoiceProductsKeyword(text),
         paymentMethod: /(طريقة\s*الدفع|الدفع|كاش|كي\s*نت|كي-نت|اونلاين|أونلاين|رابط|لينك|online|knet)/i.test(normalizeVoiceText(text))
       };
 
@@ -878,7 +883,7 @@
         recognition.onresult = event => {
           let interim = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
+            const transcript = convertSpokenNumbersInText(event.results[i][0].transcript);
             if (event.results[i].isFinal) finalTranscript += `${transcript} `;
             else interim += transcript;
           }
@@ -928,7 +933,7 @@
     function getVoicePhoneSection(text) {
       const clean = convertToEnglishNumbers(text || '').replace(/\s+/g, ' ').trim();
       const phoneLabel = '(?:رقم\\s*(?:الهاتف|هاتف|التلفون|تلفون|التليفون|تليفون|الجوال|جوال|الموبايل|موبايل|النقال|نقال|العميل|الزبون)?|هاتف(?:ه|ها)?|تلفون(?:ه|ها)?|تليفون(?:ه|ها)?|جوال(?:ه|ها)?|موبايل(?:ه|ها)?|نقال(?:ه|ها)?)';
-      const stopLabel = '(?=\\s+(?:عنوان|العنوان|عنوانه|عنوانها|منطقه|منطقة|سعر\\s*(?:التوصيل|توصيل)|المنتجات|والمنتجات|الاصناف|الأصناف|طريقة\\s*الدفع|الدفع|كاش|كي\\s*نت|اونلاين|أونلاين|رابط|لينك)|$)';
+      const stopLabel = '(?=\\s+(?:عنوان|العنوان|عنوانه|عنوانها|منطقه|منطقة|سعر(?:\\s*(?:التوصيل|توصيل))?|المنتجات|والمنتجات|الاصناف|الأصناف|طريقة\\s*الدفع|الدفع|كاش|كي\\s*نت|اونلاين|أونلاين|رابط|لينك)|$)';
       const match = clean.match(new RegExp(`${phoneLabel}\\s*[:：\\-]?\\s*([\\s\\S]+?)${stopLabel}`, 'i'));
       return match ? match[1].trim() : '';
     }
@@ -938,11 +943,11 @@
       const digitWords = {
         '0': ['0', 'صفر', 'سفر', 'زيرو', 'zero'],
         '1': ['1', 'واحد', 'واحده', 'احد', 'ون', 'one'],
-        '2': ['2', 'اثنين', 'اثنان', 'ثنين', 'ثنتين', 'اتنين', 'تو', 'two'],
+        '2': ['2', 'اثنين', 'اثنان', 'ثنين', 'ثنتين', 'اتنين', 'تو', 'two', 'زوج'],
         '3': ['3', 'ثلاثه', 'ثلاث', 'تلاته', 'تلات', 'ثري', 'three'],
         '4': ['4', 'اربعه', 'اربع', 'فور', 'four'],
         '5': ['5', 'خمسه', 'خمس', 'فايف', 'five'],
-        '6': ['6', 'سته', 'ست', 'سكس', 'six'],
+        '6': ['6', 'سته', 'ست', 'ستة', 'سكس', 'six'],
         '7': ['7', 'سبعه', 'سبع', 'سفن', 'seven'],
         '8': ['8', 'ثمانيه', 'ثماني', 'ثمنيه', 'تمنيه', 'ثمان', 'ايت', 'eight'],
         '9': ['9', 'تسعه', 'تسع', 'ناين', 'nine']
@@ -953,10 +958,14 @@
     function getSpokenCount(token) {
       const normalized = normalizeVoiceText(token);
       const counts = {
-        2: ['2', 'اثنين', 'ثنين', 'ثنتين', 'اتنين', 'مرتين'],
+        2: ['2', 'اثنين', 'ثنين', 'ثنتين', 'اتنين', 'مرتين', 'مرتينه'],
         3: ['3', 'ثلاثه', 'ثلاث', 'تلاته', 'تلات', 'ثلاث مرات'],
         4: ['4', 'اربعه', 'اربع'],
-        5: ['5', 'خمسه', 'خمس']
+        5: ['5', 'خمسه', 'خمس'],
+        6: ['6', 'سته', 'ست'],
+        7: ['7', 'سبعه', 'سبع'],
+        8: ['8', 'ثمانيه', 'ثماني', 'تمنيه'],
+        9: ['9', 'تسعه', 'تسع']
       };
       return Number(Object.entries(counts).find(([, words]) => words.includes(normalized))?.[0] || 0);
     }
@@ -1008,6 +1017,53 @@
         '90': ['تسعين']
       };
       return Object.entries(tens).find(([, words]) => words.includes(normalized))?.[0] || '';
+    }
+
+    function convertSpokenNumbersInText(value) {
+      const originalTokens = convertToEnglishNumbers(value || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+      const convertedTokens = [];
+
+      for (let i = 0; i < originalTokens.length; i++) {
+        const token = originalTokens[i];
+        if (/^\d+$/.test(token)) {
+          convertedTokens.push(token);
+          continue;
+        }
+
+        const count = getSpokenCount(token);
+        const pluralDigit = count ? getPluralSpokenDigit(originalTokens[i + 1] || '') : '';
+        if (count && pluralDigit) {
+          convertedTokens.push(Array(count).fill(pluralDigit).join(''));
+          i += 1;
+          continue;
+        }
+
+        const repeated = getRepeatedSpokenDigit(token);
+        if (repeated) {
+          convertedTokens.push(repeated);
+          continue;
+        }
+
+        const tensDigits = getSpokenTensDigits(token);
+        if (tensDigits) {
+          convertedTokens.push(tensDigits);
+          continue;
+        }
+
+        const digit = getSpokenDigit(token);
+        convertedTokens.push(digit || token);
+      }
+
+      return compactSpokenPhoneInText(value, convertedTokens.join(' '));
+    }
+
+    function compactSpokenPhoneInText(originalText, convertedText) {
+      const spokenDigits = extractSpokenVoicePhone(originalText);
+      if (!(spokenDigits.length === 8 || (spokenDigits.startsWith('965') && spokenDigits.length === 11))) return convertedText;
+      const localDigits = spokenDigits.startsWith('965') ? spokenDigits.slice(3, 11) : spokenDigits;
+      const phoneLabel = '(?:رقم\\s*(?:الهاتف|هاتف|التلفون|تلفون|التليفون|تليفون|الجوال|جوال|الموبايل|موبايل|النقال|نقال|العميل|الزبون)?|هاتف(?:ه|ها)?|تلفون(?:ه|ها)?|تليفون(?:ه|ها)?|جوال(?:ه|ها)?|موبايل(?:ه|ها)?|نقال(?:ه|ها)?)';
+      const stopLabel = '(?=\\s+(?:عنوان|العنوان|عنوانه|عنوانها|منطقه|منطقة|سعر(?:\\s*(?:التوصيل|توصيل))?|المنتجات|والمنتجات|الاصناف|الأصناف|طريقة\\s*الدفع|الدفع|كاش|كي\\s*نت|اونلاين|أونلاين|رابط|لينك)|$)';
+      return convertedText.replace(new RegExp(`(${phoneLabel}\\s*[:：\\-]?\\s*)[0-9\\s]+?${stopLabel}`, 'i'), `$1${localDigits}`);
     }
 
     function parseSpokenPhoneDigits(value) {
@@ -1142,13 +1198,14 @@
       const deliveryStop = getVoiceDeliveryStopPattern();
       return (value || '')
         .replace(new RegExp(`\\s*${deliveryStop}\\s*(?:هو|هي|ب|بـ|بسعر|=|:)?\\s*(?:[0-9٠-٩۰-۹]+(?:[\\.,][0-9٠-٩۰-۹]+)?|دينارين|دينار|واحده|واحد|ثنتين|اثنين|ثنين|نص|نصف|ربع|ثلاثه|اربعه|خمسه|سته|سبعه|ثمانيه|تسعه|عشره).*$`, 'i'), '')
+        .replace(/\s*(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)(?:\s*(?:التوصيل|توصيل|الدليفري|دليفري))?\s*$/i, '')
         .trim();
     }
 
     function getVoiceAddressSection(text) {
       const clean = (text || '').replace(/\s+/g, ' ').trim();
       const deliveryStop = getVoiceDeliveryStopPattern();
-      const addressStop = new RegExp(`(?:عنوان(?:ه|ها)?|العنوان|منطقه|منطقة|التوصيل الي|توصيل الي)\\s*[:：\\-]?\\s+(.+?)(?=\\s+(?:والمنتجات|المنتجات|يريد|يبي|يبى|وطلب|الدفع|طريقة الدفع|كاش|كي|اونلاين|أونلاين|${deliveryStop})|$)`, 'i');
+      const addressStop = new RegExp(`(?:عنوان(?:ه|ها)?|العنوان|منطقه|منطقة|التوصيل الي|توصيل الي)\\s*[:：\\-]?\\s+(.+?)(?=\\s+(?:والمنتجات|المنتجات|يريد|يبي|يبى|وطلب|الدفع|طريقة الدفع|كاش|كي|اونلاين|أونلاين|سعر|رسوم|قيمه|قيمة|اجره|اجرة|${deliveryStop})|$)`, 'i');
       const addressMatch = clean.match(addressStop);
       return stripVoiceDeliveryPriceFromText(addressMatch ? addressMatch[1].trim() : '');
     }
@@ -1235,11 +1292,10 @@
 
     function extractVoiceProductsPhrase(text) {
       const clean = (text || '').toString().replace(/\r/g, '\n').trim();
+      if (!hasVoiceProductsKeyword(clean)) return '';
       const stopPattern = '(?=\\s+(?:والدفع|الدفع|طريقة الدفع|كاش|كي\\s*نت|اونلاين|أونلاين|رابط|عنوان|العنوان|رقم|هاتف|سعر\\s+التوصيل)|$)';
-      const sectionMatch = clean.match(new RegExp(`(?:^|[\\s،,])(?:والمنتجات|المنتجات|الاصناف|الأصناف)\\s*[:：\\-]?\\s*([\\s\\S]+?)${stopPattern}`, 'i'));
-      if (sectionMatch) return sectionMatch[1].trim();
-      const commandMatch = clean.match(new RegExp(`(?:^|[\\s،,])(?:يريد|يبي|يبى|طلب|وطلب)\\s*[:：\\-]?\\s+([\\s\\S]+?)${stopPattern}`, 'i'));
-      return commandMatch ? commandMatch[1].trim() : clean;
+      const sectionMatch = clean.match(new RegExp(`(?:^|[\\s،,])(?:والمنتجات|المنتجات|منتجات|والاصناف|والأصناف|الاصناف|الأصناف|اصناف)\\s*[:：\\-]?\\s*([\\s\\S]+?)${stopPattern}`, 'i'));
+      return sectionMatch ? sectionMatch[1].trim() : '';
     }
 
     const voiceProductStopWords = new Set([
@@ -1279,7 +1335,10 @@
     }
 
     function splitVoiceProductSegments(text) {
-      const productsPhrase = extractVoiceProductsPhrase(text)
+      const rawProductsPhrase = extractVoiceProductsPhrase(text);
+      if (!rawProductsPhrase) return [];
+
+      const productsPhrase = rawProductsPhrase
         .replace(/(\d+(?:\.\d+)?)\s+(?=(?:درزن|كوكيز|فطاير|فطائر|كيك|بيتزا|مشروب|عصير|سلطه|سلطة|صحن|طبق|علبه|علبة|ساندويتش|[ء-ي]{3,}\s+[ء-ي]{3,}))/g, '$1\n')
         .replace(/(^|\s)(واحد|وحده|حبه|حبتين|اثنين|ثنين|ثنتين|ثلاثه|اربعه|خمسه|سته|سبعه|ثمانيه|تسعه|عشره)\s+(?=(?:درزن|كوكيز|فطاير|فطائر|كيك|بيتزا|مشروب|عصير|سلطه|سلطة|صحن|طبق|علبه|علبة|ساندويتش|[ء-ي]{3,}\s+[ء-ي]{3,}))/g, '$1$2\n');
 
@@ -1421,7 +1480,11 @@
       const issues = [];
       if (!phone) issues.push('رقم الهاتف غير واضح.');
       if (!customerName && !existingCustomer) issues.push('اسم العميل غير واضح.');
-      if (productsResult.matches.length === 0) issues.push('لم أتعرف على أي صنف.');
+      if (!hasVoiceProductsKeyword(fullText)) {
+        issues.push('قل "المنتجات:" قبل ذكر الأصناف.');
+      } else if (productsResult.matches.length === 0) {
+        issues.push('لم أتعرف على أي صنف.');
+      }
       if (productsResult.unmatchedSegments.length > 0) issues.push(`أصناف غير واضحة: ${productsResult.unmatchedSegments.join('، ')}`);
 
       if (issues.length) {
