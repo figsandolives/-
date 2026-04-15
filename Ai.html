@@ -338,8 +338,32 @@
       <button class="back-btn" onclick="window.location.href='index.html'">رجوع</button>
     </header>
 
-    <section id="inputStep" class="step active">
+    <section id="branchDetectStep" class="step active">
+      <div class="card" style="text-align:center; padding-block: 44px;">
+        <div class="spinner"></div>
+        <h2 style="margin: 12px 0 8px;">جاري التعرف على الفرع...</h2>
+        <p id="branchDetectMessage" class="hint">نحدد الفرع المناسب لهذا الجهاز قبل تسجيل دخول الكاشير.</p>
+      </div>
+    </section>
+
+    <section id="cashierLoginStep" class="step">
       <div class="card">
+        <h2 style="margin-top:0; text-align:center;">تسجيل دخول الكاشير</h2>
+        <div style="background: var(--blue-soft); border-radius: 20px; padding: 14px; text-align:center; margin-bottom: 16px;">
+          <div class="hint" style="margin:0;">الفرع الذي تم التعرف عليه</div>
+          <div id="loginBranchName" style="font-size: 24px; font-weight: 900; color: var(--blue); margin-top: 4px;">-</div>
+        </div>
+        <label>رمز الكاشير
+          <input id="cashierCodeInput" type="password" inputmode="numeric" autocomplete="one-time-code" placeholder="أدخل رمز الدخول">
+        </label>
+        <button class="primary-btn" style="margin-top: 14px;" onclick="loginAiCashier()">دخول</button>
+        <div id="loginStatus" class="status" style="margin-top: 10px;"></div>
+      </div>
+    </section>
+
+    <section id="inputStep" class="step">
+      <div class="card">
+        <div id="cashierSessionBadge" class="hint" style="margin-bottom: 10px; font-weight: 900;"></div>
         <p class="hint">اكتب الطلب كاملًا أو اضغط المايك وتكلم. المايك لا يبدأ إلا بعد الضغط عليه.</p>
         <div class="mic-wrap">
           <button id="micBtn" class="mic-btn" onclick="toggleMic()" type="button">🎙️</button>
@@ -387,6 +411,7 @@
     <section id="checkoutStep" class="step">
       <div class="card">
         <h2 style="margin-top:0;">معلومات العميل والإنهاء</h2>
+        <div id="checkoutCashierBadge" class="hint" style="margin-bottom: 14px; font-weight: 900;"></div>
         <div class="row">
           <label>اسم العميل<input id="customerName" type="text"></label>
           <label>رقم الهاتف<input id="customerPhone" type="tel" oninput="this.value = convertToEnglishNumbers(this.value)"></label>
@@ -465,8 +490,15 @@
       'المطلاع', 'صباح الاحمد', 'الوفرة'
     ];
 
+    const MAIN_BRANCH_NAME = 'الفرع الرئيسي';
+
     let allProducts = [];
     let allCustomers = [];
+    let allCashiers = [];
+    let allRegisteredDevices = [];
+    let nearestDeviceInfo = null;
+    let currentCashier = null;
+    let currentBranch = '';
     let currentOrder = createEmptyOrder();
     let recognition = null;
     let isListening = false;
@@ -496,7 +528,14 @@
       db.ref('customers').on('value', snapshot => {
         allCustomers = snapshot.val() ? Object.entries(snapshot.val()).map(([id, data]) => ({ id, ...data })) : [];
       });
+      db.ref('cashiers').on('value', snapshot => {
+        allCashiers = snapshot.val() ? Object.entries(snapshot.val()).map(([id, data]) => ({ id, ...data })) : [];
+      });
+      db.ref('registeredDevices').on('value', snapshot => {
+        allRegisteredDevices = snapshot.val() ? Object.entries(snapshot.val()).map(([id, data]) => ({ id, ...data })) : [];
+      });
       fillAreas();
+      initializeAiAccess();
     }
 
     function fillAreas() {
@@ -505,6 +544,161 @@
       select.innerHTML = '<option value="">اختر المنطقة</option>' +
         areas.map(area => `<option value="${escapeHtml(area)}">${escapeHtml(area)}</option>`).join('') +
         '<option value="أخرى">أخرى</option>';
+    }
+
+    function initializeAiAccess() {
+      showStep('branchDetectStep');
+      const message = document.getElementById('branchDetectMessage');
+      if (message) message.textContent = 'جاري قراءة الأجهزة المعرفة وطلب موقع الهاتف...';
+
+      setTimeout(async () => {
+        currentBranch = await detectAiBranch();
+        const branchName = document.getElementById('loginBranchName');
+        if (branchName) branchName.textContent = currentBranch;
+        showStep('cashierLoginStep');
+        setTimeout(() => document.getElementById('cashierCodeInput')?.focus(), 150);
+      }, 900);
+    }
+
+    async function detectAiBranch() {
+      const urlBranch = new URLSearchParams(window.location.search).get('branch');
+      if (urlBranch) return saveDetectedBranch(urlBranch.trim());
+
+      await loadRegisteredDevicesOnce();
+      const phoneLocation = await getCurrentPhoneLocation();
+      if (phoneLocation) {
+        const nearestDevice = getNearestRegisteredDevice(phoneLocation);
+        if (nearestDevice?.branch) {
+          nearestDeviceInfo = nearestDevice;
+          const message = document.getElementById('branchDetectMessage');
+          if (message) message.textContent = `تم اختيار أقرب جهاز معرف: ${nearestDevice.branch}`;
+          return saveDetectedBranch(nearestDevice.branch);
+        }
+      }
+
+      const savedBranch = localStorage.getItem('deviceBranch') || getRegisteredDeviceBranch() || localStorage.getItem('aiInvoiceBranch') || sessionStorage.getItem('aiInvoiceBranch');
+      const detectedBranch = (urlBranch || savedBranch || MAIN_BRANCH_NAME).trim();
+      const message = document.getElementById('branchDetectMessage');
+      if (message) message.textContent = 'لم أجد جهازًا قريبًا بموقع محفوظ، سيتم استخدام الفرع الافتراضي.';
+      return saveDetectedBranch(detectedBranch);
+    }
+
+    function saveDetectedBranch(branch) {
+      const detectedBranch = (branch || MAIN_BRANCH_NAME).trim();
+      localStorage.setItem('aiInvoiceBranch', detectedBranch);
+      sessionStorage.setItem('aiInvoiceBranch', detectedBranch);
+      return detectedBranch;
+    }
+
+    function getDeviceId() {
+      let deviceId = localStorage.getItem('deviceId');
+      if (!deviceId) {
+        deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).slice(2, 11);
+        localStorage.setItem('deviceId', deviceId);
+      }
+      return deviceId;
+    }
+
+    function getRegisteredDeviceBranch() {
+      return allRegisteredDevices.find(device => device.id === getDeviceId())?.branch || '';
+    }
+
+    async function loadRegisteredDevicesOnce() {
+      if (allRegisteredDevices.length > 0) return;
+      const snapshot = await db.ref('registeredDevices').once('value');
+      allRegisteredDevices = snapshot.val() ? Object.entries(snapshot.val()).map(([id, data]) => ({ id, ...data })) : [];
+    }
+
+    function getCurrentPhoneLocation() {
+      return new Promise(resolve => {
+        if (!navigator.geolocation) {
+          resolve(null);
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          position => resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          }),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+        );
+      });
+    }
+
+    function getDistanceMeters(from, to) {
+      const earthRadius = 6371000;
+      const lat1 = from.latitude * Math.PI / 180;
+      const lat2 = to.latitude * Math.PI / 180;
+      const deltaLat = (to.latitude - from.latitude) * Math.PI / 180;
+      const deltaLon = (to.longitude - from.longitude) * Math.PI / 180;
+      const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+      return earthRadius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function getNearestRegisteredDevice(phoneLocation) {
+      return allRegisteredDevices
+        .map(device => {
+          const latitude = parseFloat(device.latitude);
+          const longitude = parseFloat(device.longitude);
+          if (!device.branch || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+          return {
+            ...device,
+            distanceMeters: getDistanceMeters(phoneLocation, { latitude, longitude })
+          };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.distanceMeters - b.distanceMeters)[0] || null;
+    }
+
+    async function loadCashiersOnceIfNeeded() {
+      if (allCashiers.length > 0) return;
+      const snapshot = await db.ref('cashiers').once('value');
+      allCashiers = snapshot.val() ? Object.entries(snapshot.val()).map(([id, data]) => ({ id, ...data })) : [];
+    }
+
+    async function loginAiCashier() {
+      const codeInput = document.getElementById('cashierCodeInput');
+      const status = document.getElementById('loginStatus');
+      const code = (codeInput?.value || '').trim();
+      if (!code) {
+        if (status) {
+          status.textContent = 'أدخل رمز الكاشير.';
+          status.classList.add('error');
+        }
+        return;
+      }
+
+      await loadCashiersOnceIfNeeded();
+      const cashier = allCashiers.find(item => String(item.code || '').trim() === code);
+      if (!cashier) {
+        if (status) {
+          status.textContent = 'رمز الكاشير غير صحيح.';
+          status.classList.add('error');
+        }
+        return;
+      }
+
+      currentCashier = cashier;
+      currentBranch = currentBranch || await detectAiBranch();
+      if (status) {
+        status.textContent = '';
+        status.classList.remove('error');
+      }
+      sessionStorage.setItem('aiInvoiceCashierName', currentCashier.name || '');
+      sessionStorage.setItem('aiInvoiceBranch', currentBranch);
+      updateCashierBadges();
+      showStep('inputStep');
+    }
+
+    function updateCashierBadges() {
+      const distanceText = nearestDeviceInfo?.distanceMeters !== undefined ? ` - أقرب جهاز: ${Math.round(nearestDeviceInfo.distanceMeters)}م` : '';
+      const text = currentCashier && currentBranch ? `الكاشير: ${currentCashier.name || ''} - الفرع: ${currentBranch}${distanceText}` : '';
+      const cashierBadge = document.getElementById('cashierSessionBadge');
+      const checkoutBadge = document.getElementById('checkoutCashierBadge');
+      if (cashierBadge) cashierBadge.textContent = text;
+      if (checkoutBadge) checkoutBadge.textContent = text;
     }
 
     function escapeHtml(value) {
@@ -648,8 +842,15 @@
       const phoneMatch = converted.match(phonePattern);
       let digits = phoneMatch ? `${phoneMatch[1] || ''}${phoneMatch[2] || ''}`.replace(/\D/g, '') : '';
       if (!digits) {
+        const phoneCandidates = Array.from(converted.matchAll(/(?:^|[^\d])(\+?965[\s-]*)?([0-9][0-9\s-]{6,}[0-9])(?=$|[^\d])/g))
+          .map(match => `${match[1] || ''}${match[2] || ''}`.replace(/\D/g, ''))
+          .map(candidate => candidate.startsWith('965') && candidate.length >= 11 ? candidate.slice(0, 11) : candidate)
+          .filter(candidate => candidate.length === 8 || (candidate.startsWith('965') && candidate.length === 11));
+        digits = phoneCandidates[0] || '';
+      }
+      if (!digits) {
         const allDigits = converted.replace(/\D/g, '');
-        if (allDigits.length >= 8) digits = allDigits;
+        if (allDigits.length === 8 || (allDigits.startsWith('965') && allDigits.length === 11)) digits = allDigits;
       }
       if (digits.startsWith('965') && digits.length >= 11) digits = digits.slice(3, 11);
       else if (digits.length > 8) digits = digits.slice(-8);
@@ -657,24 +858,74 @@
       return { local: digits, full: `965${digits}` };
     }
 
+    function getVoiceCustomerStopWordsPattern() {
+      return [
+        'رقم\\s*(?:الهاتف|هاتف|التلفون|تلفون|التليفون|تليفون|الجوال|جوال|الموبايل|موبايل|النقال|نقال|العميل|الزبون)?',
+        'هاتف(?:ه|ها)?',
+        'تلفون(?:ه|ها)?',
+        'تليفون(?:ه|ها)?',
+        'جوال(?:ه|ها)?',
+        'موبايل(?:ه|ها)?',
+        'نقال(?:ه|ها)?',
+        'عنوان(?:ه|ها)?',
+        'العنوان',
+        'منطقه',
+        'منطقة',
+        'والمنتجات',
+        'المنتجات',
+        'الاصناف',
+        'الأصناف',
+        'يريد',
+        'يبي',
+        'يبى',
+        'الدفع',
+        'طريقة الدفع',
+        '(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)\\s*(?:التوصيل|توصيل|الدليفري|دليفري)'
+      ].join('|');
+    }
+
+    function cleanVoiceCustomerNameCandidate(value) {
+      const stopWords = getVoiceCustomerStopWordsPattern();
+      return convertToEnglishNumbers(value || '')
+        .replace(/\s+/g, ' ')
+        .replace(new RegExp(`\\s*(?:${stopWords})[\\s:：\\-]*(?:\\+?965[\\s-]*)?[0-9\\s-]{0,14}.*$`, 'i'), '')
+        .replace(/\s*(?:\+?965[\s-]*)?[0-9][0-9\s-]{7,}.*$/, '')
+        .replace(/^باسم\s+/i, '')
+        .trim();
+    }
+
     function extractVoiceCustomerName(text) {
       const clean = (text || '').replace(/\s+/g, ' ').trim();
+      const stopWords = getVoiceCustomerStopWordsPattern();
       const patterns = [
-        /(?:باسم|اسم العميل|للعميل|لعميل|عميل اسمه)\s+(.+?)(?=\s+(?:رقم|هاتف|تلفون|تليفون|موبايل|نقال|عنوان|العنوان|منطقه|منطقة|والمنتجات|المنتجات|يريد|يبي|يبى|الدفع|طريقة الدفع|سعر التوصيل)|$)/i,
-        /(?:انشئ|اعمل|سوي|سو)\s+فاتوره\s+(.+?)(?=\s+(?:رقم|هاتف|تلفون|تليفون|موبايل|نقال|عنوان|العنوان|منطقه|منطقة|والمنتجات|المنتجات|يريد|يبي|يبى|الدفع|طريقة الدفع|سعر التوصيل)|$)/i
+        new RegExp(`(?:باسم|اسم العميل|للعميل|لعميل|عميل اسمه)\\s+(.+?)(?=\\s+(?:${stopWords})|\\s+(?:\\+?965[\\s-]*)?[0-9][0-9\\s-]{7,}|$)`, 'i'),
+        new RegExp(`(?:انشئ|اعمل|سوي|سو)\\s+فاتوره\\s+(.+?)(?=\\s+(?:${stopWords})|\\s+(?:\\+?965[\\s-]*)?[0-9][0-9\\s-]{7,}|$)`, 'i')
       ];
       for (const pattern of patterns) {
         const match = clean.match(pattern);
-        if (match && match[1]) return match[1].replace(/^باسم\s+/i, '').trim();
+        if (match && match[1]) return cleanVoiceCustomerNameCandidate(match[1]);
       }
       return '';
+    }
+
+    function getVoiceDeliveryStopPattern() {
+      return '(?:(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)\\s*)?(?:التوصيل|توصيل|الدليفري|دليفري)';
+    }
+
+    function stripVoiceDeliveryPriceFromText(value) {
+      const deliveryStop = getVoiceDeliveryStopPattern();
+      return (value || '')
+        .replace(new RegExp(`\\s*${deliveryStop}\\s*(?:هو|هي|ب|بـ|بسعر|=|:)?\\s*(?:[0-9٠-٩۰-۹]+(?:[\\.,][0-9٠-٩۰-۹]+)?|دينارين|دينار|واحده|واحد|ثنتين|اثنين|ثنين|نص|نصف|ربع|ثلاثه|اربعه|خمسه|سته|سبعه|ثمانيه|تسعه|عشره).*$`, 'i'), '')
+        .trim();
     }
 
     function extractVoiceAddress(text) {
       const clean = (text || '').replace(/\s+/g, ' ').trim();
       const areaFromKnownList = areas.find(area => normalizeVoiceText(clean).includes(normalizeVoiceText(area)));
-      const addressMatch = clean.match(/(?:عنوان(?:ه|ها)?|العنوان|منطقه|منطقة|التوصيل الي|توصيل الي)\s+(.+?)(?=\s+(?:والمنتجات|المنتجات|يريد|يبي|يبى|وطلب|الدفع|طريقة الدفع|كاش|كي|اونلاين|أونلاين|سعر\s+(?:التوصيل|الدليفري|دليفري)|رسوم\s+(?:التوصيل|الدليفري|دليفري)|(?:قيمة|قيمه|أجرة|اجرة)\s+(?:التوصيل|الدليفري|دليفري))|$)/i);
-      const rawDetails = addressMatch ? addressMatch[1].trim() : '';
+      const deliveryStop = getVoiceDeliveryStopPattern();
+      const addressStop = new RegExp(`(?:عنوان(?:ه|ها)?|العنوان|منطقه|منطقة|التوصيل الي|توصيل الي)\\s+(.+?)(?=\\s+(?:والمنتجات|المنتجات|يريد|يبي|يبى|وطلب|الدفع|طريقة الدفع|كاش|كي|اونلاين|أونلاين|${deliveryStop})|$)`, 'i');
+      const addressMatch = clean.match(addressStop);
+      const rawDetails = stripVoiceDeliveryPriceFromText(addressMatch ? addressMatch[1].trim() : '');
       const area = areaFromKnownList || rawDetails.split(' ')[0] || '';
       const areaWordCount = normalizeVoiceText(area).split(' ').filter(Boolean).length;
       let details = rawDetails;
@@ -688,12 +939,28 @@
       return { area, details };
     }
 
+    function parseVoiceMoneyAmount(value) {
+      const normalized = normalizeVoiceText(value);
+      const digitMatch = normalized.match(/\d+(?:\.\d+)?/);
+      if (digitMatch) return parseFloat(digitMatch[0]);
+      const wordValues = [
+        ['عشره', 10], ['تسعه', 9], ['ثمانيه', 8], ['سبعه', 7], ['سته', 6],
+        ['خمسه', 5], ['اربعه', 4], ['ثلاثه', 3], ['ثنتين', 2], ['اثنين', 2],
+        ['ثنين', 2], ['دينارين', 2], ['واحده', 1], ['واحد', 1], ['دينار', 1],
+        ['نصف', 0.5], ['نص', 0.5], ['ربع', 0.25]
+      ];
+      const found = wordValues.find(([word]) => normalized.includes(word));
+      return found ? found[1] : NaN;
+    }
+
     function extractVoiceDeliveryPrice(text) {
       const normalized = normalizeVoiceText(text);
-      const match = normalized.match(/(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)\s*(?:التوصيل|الدليفري|دليفري|توصيل)\s*(\d+(?:\.\d+)?)/)
-        || normalized.match(/(?:التوصيل|الدليفري|دليفري)\s*(?:ب|بـ|بسعر)?\s*(\d+(?:\.\d+)?)/);
+      const amountPattern = '([0-9]+(?:\\.[0-9]+)?|دينارين|دينار|واحده|واحد|ثنتين|اثنين|ثنين|نص|نصف|ربع|ثلاثه|اربعه|خمسه|سته|سبعه|ثمانيه|تسعه|عشره)';
+      const match = normalized.match(new RegExp(`(?:سعر|رسوم|قيمه|اجره)\\s*(?:التوصيل|توصيل|الدليفري|دليفري)\\s*(?:هو|هي|ب|بسعر)?\\s*${amountPattern}`))
+        || normalized.match(new RegExp(`(?:التوصيل|توصيل|الدليفري|دليفري)\\s*(?:ب|بسعر|سعره|قيمته)?\\s*${amountPattern}`))
+        || normalized.match(new RegExp(`${amountPattern}\\s*(?:دك|دينار|دنانير)?\\s*(?:توصيل|دليفري)`));
       if (!match) return 0;
-      const deliveryPrice = parseFloat(match[1]);
+      const deliveryPrice = parseVoiceMoneyAmount(match[1]);
       return Number.isFinite(deliveryPrice) && deliveryPrice >= 0 ? parseFloat(deliveryPrice.toFixed(3)) : 0;
     }
 
@@ -1035,6 +1302,11 @@
     }
 
     function showCheckoutStep() {
+      if (!currentCashier) {
+        alert('سجل دخول الكاشير أولًا.');
+        showStep('cashierLoginStep');
+        return;
+      }
       if (currentOrder.items.length === 0) {
         alert('لا توجد منتجات في الفاتورة.');
         return;
@@ -1042,6 +1314,7 @@
       document.getElementById('customerName').value = currentOrder.customer?.name || '';
       const phone = convertToEnglishNumbers(currentOrder.customer?.phone || '').replace(/^965/, '');
       document.getElementById('customerPhone').value = phone;
+      updateCashierBadges();
       setOrderType(currentOrder.orderType || 'delivery');
       setPaymentMethod(currentOrder.paymentMethod || 'cash');
       fillAreas();
@@ -1092,7 +1365,11 @@
       const snapshot = await counterRef.once('value');
       const currentCounter = (snapshot.val() || 0) + 1;
       await counterRef.set(currentCounter);
-      return currentCounter.toString().padStart(3, '0');
+      let paddingLength = 3;
+      if (branch === 'اليرموك') paddingLength = 4;
+      else if (branch === 'أبو الحصانية') paddingLength = 5;
+      else if (branch === 'المخزن الرئيسي') paddingLength = 6;
+      return currentCounter.toString().padStart(paddingLength, '0');
     }
 
     function getTotals() {
@@ -1127,6 +1404,11 @@
     async function saveInvoice() {
       const name = (document.getElementById('customerName')?.value || '').trim();
       const phone = convertToEnglishNumbers(document.getElementById('customerPhone')?.value || '').replace(/\D/g, '');
+      if (!currentCashier) {
+        alert('سجل دخول الكاشير أولًا.');
+        showStep('cashierLoginStep');
+        return;
+      }
       if (!name || phone.length < 8) {
         alert('أدخل اسم العميل ورقم الهاتف.');
         return;
@@ -1149,7 +1431,7 @@
       }
 
       updateTotals();
-      const branch = 'الفرع الرئيسي';
+      const branch = currentBranch || MAIN_BRANCH_NAME;
       const invoiceNumber = await generateInvoiceNumber(branch);
       const totals = getTotals();
       const customer = { name, phone: phone.startsWith('965') ? phone : `965${phone.slice(-8)}` };
@@ -1158,8 +1440,9 @@
       const order = {
         invoiceNumber,
         timestamp: Date.now(),
-        cashier: 'Ai',
-        cashierCode: 'AI',
+        cashier: currentCashier.name || '',
+        cashierCode: currentCashier.code || '',
+        createdByAi: true,
         branch,
         customerName: customer.name,
         phoneNumber: customer.phone,
@@ -1234,6 +1517,10 @@
       setStatus('جاهز. اضغط المايك أو اكتب الطلب.');
       showStep('inputStep');
     }
+
+    document.getElementById('cashierCodeInput')?.addEventListener('keydown', event => {
+      if (event.key === 'Enter') loginAiCashier();
+    });
 
     setupData();
   </script>

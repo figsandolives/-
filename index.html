@@ -132,6 +132,11 @@
                     قسم المحاسبة
                 </button>
             </div>
+            <div class="mt-6">
+                <button type="button" onclick="window.location.href='Ai.html'" class="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-4 px-10 rounded-xl shadow-lg transition duration-300 ease-in-out transform hover:scale-105">
+                    🤖 فاتورة Ai
+                </button>
+            </div>
         </div>
 
         <!-- Secretariat Section -->
@@ -147,9 +152,6 @@
             <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
                 <button id="searchOrderSecretariatBtn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-xl transition duration-300 ease-in-out transform hover:scale-105">
                     البحث عن طلب
-                </button>
-                <button type="button" onclick="window.location.href='Ai.html'" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition duration-300 ease-in-out transform hover:scale-105">
-                    فاتورة Ai
                 </button>
                 <button id="newOrderBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition duration-300 ease-in-out transform hover:scale-105">
                     تسليم طلب جديد
@@ -1580,7 +1582,7 @@
                     formData[question.id] = value;
                 }
             }
-            
+
             if (!isValid) return null;
 
             const finalOrderType = formData.orderType || getCurrentOrderTypeValue();
