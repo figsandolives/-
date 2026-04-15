@@ -1279,6 +1279,7 @@ function refreshUI() {
       closeVoiceInvoicePage();
       voiceInvoiceFinalTranscript = '';
       voiceInvoiceInterimTranscript = '';
+      voiceInvoiceIsListening = false;
       voiceInvoiceIsAnalyzing = false;
 
       const page = document.createElement('div');
@@ -1293,9 +1294,9 @@ function refreshUI() {
 
           <div class="flex-1 flex items-center justify-center p-6">
             <div class="w-full max-w-4xl bg-white rounded-3xl shadow-2xl p-8 text-center">
-              <div class="text-gray-600 mb-2">اضغط على المايك بعد الانتهاء من الكلام ليبدأ التحليل</div>
-              <button id="voiceInvoiceMicBtn" onclick="toggleVoiceInvoiceMic()" class="voice-mic-button listening" type="button">🎙️</button>
-              <div id="voiceInvoiceStatus" class="mt-5 text-lg font-bold text-blue-700">المايك مفتوح، تكلم الآن...</div>
+              <div class="text-gray-600 mb-2">اضغط المايك للتحدث، أو اكتب الطلب ثم اضغط إرسال</div>
+              <button id="voiceInvoiceMicBtn" onclick="toggleVoiceInvoiceMic()" class="voice-mic-button" type="button">🎙️</button>
+              <div id="voiceInvoiceStatus" class="mt-5 text-lg font-bold text-blue-700">المايك مغلق. اضغط زر المايك في الوسط لبدء التسجيل.</div>
 
               <div class="mt-8 text-right">
                 <div class="font-bold text-gray-800 mb-2">الكلام المسجل:</div>
@@ -1307,6 +1308,7 @@ function refreshUI() {
               <div class="mt-5 text-right">
                 <label for="voiceInvoiceManualInput" class="font-bold text-gray-800 mb-2 block">أو اكتب الطلب هنا:</label>
                 <textarea id="voiceInvoiceManualInput" rows="4" class="w-full bg-white border-2 border-blue-100 rounded-2xl p-4 text-xl leading-10 text-gray-800 focus:border-blue-500 focus:outline-none" placeholder="مثال: أنشئ فاتورة باسم محمد رقم هاتفه 99999999 عنوانه السالمية والمنتجات بيتزا عدد 2 ومشروب عدد 1"></textarea>
+                <button onclick="submitVoiceInvoiceCommand()" class="mt-3 bg-blue-600 text-white px-8 py-3 rounded-xl font-bold text-lg hover:bg-blue-700 transition" type="button">إرسال وتحليل الطلب</button>
               </div>
 
               <div id="voiceInvoiceAnalysis" class="mt-5 text-right bg-blue-50 border border-blue-100 rounded-2xl p-4 text-gray-700">
@@ -1318,7 +1320,7 @@ function refreshUI() {
       `;
 
       document.body.appendChild(page);
-      startVoiceInvoiceListening();
+      updateVoiceInvoiceMicButton();
     }
 
     function closeVoiceInvoicePage() {
@@ -1342,7 +1344,7 @@ function refreshUI() {
       const button = document.getElementById('voiceInvoiceMicBtn');
       if (!button) return;
       button.className = `voice-mic-button ${voiceInvoiceIsListening ? 'listening' : ''}`;
-      button.textContent = voiceInvoiceIsListening ? '🎙️' : '▶';
+      button.textContent = voiceInvoiceIsListening ? '⏹' : '🎙️';
     }
 
     function updateVoiceInvoiceTranscriptDisplay() {
@@ -1437,6 +1439,13 @@ function refreshUI() {
       }
     }
 
+    function submitVoiceInvoiceCommand() {
+      if (voiceInvoiceIsListening) {
+        stopVoiceInvoiceListening(false);
+      }
+      analyzeVoiceInvoiceCommand();
+    }
+
     function normalizeVoiceText(value) {
       return convertToEnglishNumbers(value || '')
         .toString()
@@ -1447,6 +1456,8 @@ function refreshUI() {
         .replace(/[ة]/g, 'ه')
         .replace(/[ى]/g, 'ي')
         .replace(/[ًٌٍَُِّْـ]/g, '')
+        .replace(/(?:بيتي|بتي|بيت)\s*فور/g, 'بيتفور')
+        .replace(/شيكولاته|شكولاته|شوكلاته/g, 'شوكولاته')
         .replace(/[^\u0600-\u06FFa-z0-9.\s]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -1487,11 +1498,23 @@ function refreshUI() {
       const clean = (text || '').replace(/\s+/g, ' ').trim();
       const areaFromKnownList = areas.find(area => normalizeVoiceText(clean).includes(normalizeVoiceText(area)));
       const addressMatch = clean.match(/(?:عنوان(?:ه|ها)?|العنوان|منطقه|منطقة|التوصيل الي|توصيل الي)\s+(.+?)(?=\s+(?:والمنتجات|المنتجات|يريد|يبي|يبى|وطلب|الدفع|طريقة الدفع|كاش|كي|اونلاين|أونلاين)|$)/i);
-      const details = addressMatch ? addressMatch[1].trim() : '';
-      if (!areaFromKnownList && !details) return null;
+      const rawDetails = addressMatch ? addressMatch[1].trim() : '';
+      const area = areaFromKnownList || rawDetails.split(' ')[0] || '';
+      const areaWordCount = normalizeVoiceText(area).split(' ').filter(Boolean).length;
+      let details = rawDetails;
+      if (area && details) {
+        const normalizedArea = normalizeVoiceText(area);
+        const normalizedDetails = normalizeVoiceText(details);
+        if (normalizedDetails === normalizedArea) {
+          details = '';
+        } else if (normalizedDetails.startsWith(`${normalizedArea} `)) {
+          details = details.split(/\s+/).slice(areaWordCount).join(' ').trim();
+        }
+      }
+      if (!area && !details) return null;
       return {
-        area: areaFromKnownList || details.split(' ')[0] || '',
-        details: details || areaFromKnownList || ''
+        area,
+        details
       };
     }
 
@@ -1526,8 +1549,11 @@ function refreshUI() {
 
     function extractVoiceProductsPhrase(text) {
       const clean = (text || '').toString().replace(/\r/g, '\n').trim();
-      const match = clean.match(/(?:المنتجات|الاصناف|الأصناف|يريد|يبي|يبى|طلب|وطلب)\s+([\s\S]+?)(?=\s+(?:والدفع|الدفع|طريقة الدفع|كاش|كي\s*نت|اونلاين|أونلاين|رابط|عنوان|العنوان|رقم|هاتف)|$)/i);
-      return match ? match[1].trim() : clean;
+      const stopPattern = '(?=\\s+(?:والدفع|الدفع|طريقة الدفع|كاش|كي\\s*نت|اونلاين|أونلاين|رابط|عنوان|العنوان|رقم|هاتف)|$)';
+      const sectionMatch = clean.match(new RegExp(`(?:^|[\\s،,])(?:والمنتجات|المنتجات|الاصناف|الأصناف)\\s*[:：\\-]?\\s*([\\s\\S]+?)${stopPattern}`, 'i'));
+      if (sectionMatch) return sectionMatch[1].trim();
+      const commandMatch = clean.match(new RegExp(`(?:^|[\\s،,])(?:يريد|يبي|يبى|طلب|وطلب)\\s*[:：\\-]?\\s+([\\s\\S]+?)${stopPattern}`, 'i'));
+      return commandMatch ? commandMatch[1].trim() : clean;
     }
 
     const voiceProductStopWords = new Set([
@@ -1615,8 +1641,16 @@ function refreshUI() {
           return;
         }
         const nameWords = getVoiceProductTokens(name);
-        const hits = nameWords.filter(nameWord => segmentTokens.some(segmentWord => areVoiceTokensSimilar(segmentWord, nameWord))).length;
-        const score = nameWords.length ? hits / nameWords.length : 0;
+        const productHits = nameWords.filter(nameWord =>
+          segmentTokens.some(segmentWord => areVoiceTokensSimilar(segmentWord, nameWord))
+        ).length;
+        const segmentHits = segmentTokens.filter(segmentWord =>
+          nameWords.some(nameWord => areVoiceTokensSimilar(segmentWord, nameWord))
+        ).length;
+        const productCoverage = nameWords.length ? productHits / nameWords.length : 0;
+        const segmentCoverage = segmentTokens.length ? segmentHits / segmentTokens.length : 0;
+        const segmentScore = segmentTokens.length >= 2 ? segmentCoverage * 0.95 : segmentCoverage * 0.45;
+        const score = Math.max(productCoverage, segmentScore);
         bestScore = Math.max(bestScore, score);
       });
       return bestScore;
@@ -1723,8 +1757,34 @@ function refreshUI() {
         <div class="font-bold text-red-700 mb-2">أحتاج معلومات إضافية قبل إنشاء الفاتورة:</div>
         <ul class="list-disc pr-6">${issues.map(issue => `<li>${escapeHtml(issue)}</li>`).join('')}</ul>
         ${unmatchedHtml}
-        <div class="mt-3 text-blue-700 font-bold">اضغط زر المايك مرة أخرى وقل المعلومات الناقصة.</div>
+        <div class="mt-3 text-blue-700 font-bold">اضغط زر المايك مرة أخرى أو اكتب المعلومات الناقصة ثم اضغط إرسال.</div>
       `;
+    }
+
+    function renderVoiceInvoiceAnalyzingPage() {
+      const page = document.getElementById('voiceInvoicePage');
+      if (!page) return;
+      page.innerHTML = `
+        <div class="min-h-full flex flex-col bg-slate-50">
+          <div class="bg-blue-700 text-white p-4 flex justify-between items-center shadow-lg">
+            <h2 class="text-2xl font-bold">تحليل بيانات الطلب</h2>
+            <button onclick="closeVoiceInvoicePage()" class="bg-white text-blue-700 px-5 py-2 rounded-lg font-bold hover:bg-blue-50 transition">إلغاء</button>
+          </div>
+          <div class="flex-1 flex items-center justify-center p-6">
+            <div class="w-full max-w-xl bg-white rounded-3xl shadow-2xl p-10 text-center">
+              <div class="w-24 h-24 mx-auto mb-6 border-8 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+              <div id="voiceInvoiceStatus" class="text-2xl font-extrabold text-blue-700 mb-3">جاري تحليل البيانات...</div>
+              <div id="voiceInvoiceAnalysis" class="text-gray-600 text-lg leading-8">
+                يتم قراءة العميل والعنوان والأصناف وتجهيز صفحة مراجعة المنتجات.
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function waitForVoiceInvoiceAnalysis(ms = 1400) {
+      return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     async function analyzeVoiceInvoiceCommand() {
@@ -1736,12 +1796,12 @@ function refreshUI() {
       updateVoiceInvoiceTranscriptDisplay();
 
       if (!fullText) {
-        setVoiceInvoiceStatus('لم أسمع كلامًا واضحًا. اضغط المايك وحاول مرة ثانية.', true);
+        setVoiceInvoiceStatus('لم أجد طلبًا واضحًا. اضغط المايك أو اكتب الطلب ثم اضغط إرسال.', true);
         voiceInvoiceIsAnalyzing = false;
         return;
       }
 
-      setVoiceInvoiceStatus('تم إيقاف المايك، جاري تحليل الطلب...');
+      setVoiceInvoiceStatus('جاري تحليل الطلب...');
       const phone = extractVoicePhone(fullText);
       const productsResult = extractVoiceProducts(fullText);
       const address = extractVoiceAddress(fullText);
@@ -1780,6 +1840,8 @@ function refreshUI() {
         parsed.products.forEach(item => addVoiceProductToOrder(item.product, item.quantity));
         await prepareVoiceCustomer(parsed);
 
+        renderVoiceInvoiceAnalyzingPage();
+
         const analysis = document.getElementById('voiceInvoiceAnalysis');
         if (analysis) {
           analysis.innerHTML = `
@@ -1789,10 +1851,10 @@ function refreshUI() {
             <div>عدد الأصناف: ${currentOrder.items.length}</div>
           `;
         }
-        setVoiceInvoiceStatus('تم تجهيز الفاتورة. راجع البيانات قبل الطباعة.');
+        setVoiceInvoiceStatus('تم تحليل الطلب. جاري فتح مراجعة المنتجات...');
+        await waitForVoiceInvoiceAnalysis();
         closeVoiceInvoicePage();
-        showNewInvoicePage(false);
-        showCheckoutModal();
+        showNewInvoicePage(false, { reviewMode: true });
       } catch (error) {
         console.error('Voice invoice analysis error:', error);
         setVoiceInvoiceStatus('حدث خطأ أثناء إنشاء الفاتورة من الصوت.', true);
@@ -1801,10 +1863,11 @@ function refreshUI() {
       }
     }
     
-    function showNewInvoicePage(resetOrder = true) {
+    function showNewInvoicePage(resetOrder = true, options = {}) {
       if (resetOrder) {
         currentOrder = createEmptyOrder();
       }
+      const isReviewMode = options.reviewMode === true;
       
       const page = document.createElement('div');
       page.className = 'invoice-page';
@@ -1813,7 +1876,10 @@ function refreshUI() {
         <div class="h-full flex flex-col">
           <!-- Header with close button -->
           <div class="no-print bg-blue-600 text-white p-4 flex justify-between items-center">
-  <h2 class="text-2xl font-bold">فاتورة جديدة</h2>
+            <div>
+              <h2 class="text-2xl font-bold">${isReviewMode ? 'ارجو مراجعة المنتجات' : 'فاتورة جديدة'}</h2>
+              ${isReviewMode ? '<div class="text-blue-100 text-sm mt-1">راجع الأصناف والكميات، ويمكنك الإضافة أو الحذف أو التعديل قبل الانتقال لبيانات العميل.</div>' : ''}
+            </div>
             <button onclick="closeInvoicePage()" class="text-3xl font-bold hover:text-red-300">✕</button>
           </div>
           
@@ -1829,8 +1895,8 @@ function refreshUI() {
               </div>
               
               <div class="p-4 border-t border-gray-300">
-                <button id="nextButton" onclick="showCheckoutModal()" disabled class="w-full bg-gray-400 text-white px-6 py-3 rounded-lg font-bold cursor-not-allowed">
-                  التالي
+                <button id="nextButton" onclick="${isReviewMode ? 'completeVoiceProductReview()' : 'showCheckoutModal()'}" disabled class="w-full bg-gray-400 text-white px-6 py-3 rounded-lg font-bold cursor-not-allowed">
+                  ${isReviewMode ? 'تم المراجعة' : 'التالي'}
                 </button>
               </div>
             </div>
@@ -1849,6 +1915,10 @@ function refreshUI() {
       
       document.body.appendChild(page);
       updateSelectedItemsDisplay();
+    }
+
+    function completeVoiceProductReview() {
+      showCheckoutModal();
     }
     
     function closeInvoicePage() {
