@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>فاتورة Ai</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #6b7280;
+      --blue: #1d4ed8;
+      --blue-soft: #dbeafe;
+      --green: #16a34a;
+      --red: #dc2626;
+      --amber: #f59e0b;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --line: #e5e7eb;
+      --shadow: 0 18px 45px rgba(24, 39, 75, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Tahoma, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(29, 78, 216, 0.12), transparent 30%),
+        linear-gradient(180deg, #f8fbff 0%, var(--bg) 52%, #eef2ff 100%);
+      color: var(--ink);
+    }
+
+    button, input, textarea, select { font: inherit; }
+    button { border: 0; cursor: pointer; }
+
+    .app-shell {
+      width: min(100%, 760px);
+      margin: 0 auto;
+      min-height: 100vh;
+      padding: env(safe-area-inset-top) 14px 24px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 0 10px;
+      backdrop-filter: blur(12px);
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: clamp(25px, 7vw, 36px);
+      letter-spacing: -0.02em;
+    }
+
+    .title-block p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .back-btn, .ghost-btn {
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--blue);
+      border: 1px solid rgba(29, 78, 216, 0.16);
+      border-radius: 16px;
+      padding: 12px 14px;
+      font-weight: 800;
+      box-shadow: 0 8px 24px rgba(29, 78, 216, 0.08);
+    }
+
+    .step { display: none; animation: rise 280ms ease both; }
+    .step.active { display: block; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(226, 232, 240, 0.95);
+      border-radius: 28px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin: 14px 0;
+    }
+
+    .hint {
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    .mic-wrap {
+      display: grid;
+      place-items: center;
+      padding: 16px 0 8px;
+    }
+
+    .mic-btn {
+      width: 112px;
+      height: 112px;
+      border-radius: 999px;
+      color: white;
+      font-size: 42px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #2563eb, #4338ca);
+      box-shadow: 0 18px 42px rgba(37, 99, 235, 0.32);
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .mic-btn:active { transform: scale(0.96); }
+    .mic-btn.listening {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      animation: pulse 1.15s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.34), 0 18px 42px rgba(239, 68, 68, 0.25); }
+      50% { box-shadow: 0 0 0 18px rgba(239, 68, 68, 0), 0 18px 42px rgba(239, 68, 68, 0.25); }
+    }
+
+    .status {
+      text-align: center;
+      color: var(--blue);
+      font-weight: 900;
+      min-height: 28px;
+      line-height: 1.7;
+    }
+
+    .status.error { color: var(--red); }
+
+    .transcript {
+      min-height: 86px;
+      border: 2px dashed #dbeafe;
+      border-radius: 20px;
+      background: #f8fbff;
+      padding: 14px;
+      line-height: 1.9;
+      color: #1f2937;
+      word-break: break-word;
+    }
+
+    textarea, input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px 15px;
+      background: white;
+      color: var(--ink);
+      outline: none;
+      transition: border 150ms ease, box-shadow 150ms ease;
+    }
+
+    textarea:focus, input:focus, select:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.18);
+    }
+
+    textarea { min-height: 150px; resize: vertical; line-height: 1.9; }
+
+    .primary-btn, .success-btn, .danger-btn, .small-btn {
+      width: 100%;
+      border-radius: 18px;
+      padding: 15px 18px;
+      color: white;
+      font-weight: 900;
+      box-shadow: 0 12px 26px rgba(29, 78, 216, 0.16);
+    }
+
+    .primary-btn { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+    .success-btn { background: linear-gradient(135deg, #16a34a, #15803d); }
+    .danger-btn { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .small-btn { width: auto; padding: 9px 12px; border-radius: 14px; font-size: 13px; }
+
+    .row { display: grid; gap: 12px; }
+    .two { grid-template-columns: 1fr 1fr; }
+    .three { grid-template-columns: repeat(3, 1fr); }
+
+    .pill-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pill-row.three { grid-template-columns: repeat(3, 1fr); }
+
+    .pill {
+      padding: 13px 10px;
+      border-radius: 16px;
+      background: #eef2ff;
+      color: #334155;
+      font-weight: 900;
+      border: 1px solid transparent;
+    }
+
+    .pill.active {
+      background: #1d4ed8;
+      color: white;
+      box-shadow: 0 10px 22px rgba(29, 78, 216, 0.22);
+    }
+
+    .item-card {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 14px;
+      background: #fff;
+      margin: 10px 0;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    }
+
+    .item-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .item-title { font-weight: 900; line-height: 1.55; }
+    .item-sub { color: var(--muted); font-size: 12px; margin-top: 3px; }
+
+    .qty-row {
+      display: grid;
+      grid-template-columns: 42px 1fr 42px auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .qty-btn {
+      height: 42px;
+      border-radius: 14px;
+      background: #e0edff;
+      color: #1d4ed8;
+      font-size: 22px;
+      font-weight: 900;
+    }
+
+    .qty-input { text-align: center; padding: 10px; border-radius: 14px; font-weight: 900; }
+
+    .price { color: var(--blue); font-weight: 900; white-space: nowrap; }
+
+    .search-results {
+      max-height: 260px;
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .search-result {
+      text-align: right;
+      border-radius: 16px;
+      background: #f8fafc;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .summary {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 22px;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .summary-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .summary-line.total {
+      border-top: 1px solid #bfdbfe;
+      padding-top: 10px;
+      font-size: 19px;
+      color: var(--blue);
+      font-weight: 900;
+    }
+
+    .spinner {
+      width: 84px;
+      height: 84px;
+      border-radius: 999px;
+      border: 8px solid #dbeafe;
+      border-top-color: #2563eb;
+      animation: spin 900ms linear infinite;
+      margin: 16px auto;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .issue-box {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      border-radius: 18px;
+      padding: 12px;
+      line-height: 1.8;
+      display: none;
+    }
+
+    .issue-box.show { display: block; }
+
+    .receipt {
+      direction: rtl;
+      background: white;
+      color: #111827;
+      border-radius: 18px;
+      padding: 16px;
+      border: 1px dashed #cbd5e1;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .muted { color: var(--muted); }
+    .hidden { display: none !important; }
+
+    @media (min-width: 640px) {
+      .app-shell { padding-inline: 22px; }
+      .card { padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="title-block">
+        <h1>فاتورة Ai</h1>
+        <p>إنشاء فاتورة بالصوت أو الكتابة</p>
+      </div>
+      <button class="back-btn" onclick="window.location.href='index.html'">رجوع</button>
+    </header>
+
+    <section id="inputStep" class="step active">
+      <div class="card">
+        <p class="hint">اكتب الطلب كاملًا أو اضغط المايك وتكلم. المايك لا يبدأ إلا بعد الضغط عليه.</p>
+        <div class="mic-wrap">
+          <button id="micBtn" class="mic-btn" onclick="toggleMic()" type="button">🎙️</button>
+        </div>
+        <div id="status" class="status">جاهز. اضغط المايك أو اكتب الطلب.</div>
+        <div style="margin-top: 14px;">
+          <div style="font-weight: 900; margin-bottom: 8px;">الكلام المسجل</div>
+          <div id="transcript" class="transcript"><span class="muted">سيظهر الكلام هنا أثناء التسجيل...</span></div>
+        </div>
+        <div style="margin-top: 16px;">
+          <textarea id="manualInput" placeholder="اكتب اسم العميل، الهاتف، العنوان، المنتجات، طريقة الدفع وسعر التوصيل"></textarea>
+        </div>
+        <div id="issuesBox" class="issue-box" style="margin-top: 12px;"></div>
+        <button class="primary-btn" style="margin-top: 14px;" onclick="submitCommand()">إرسال وتحليل الطلب</button>
+      </div>
+    </section>
+
+    <section id="analysisStep" class="step">
+      <div class="card" style="text-align:center; padding-block: 44px;">
+        <div class="spinner"></div>
+        <h2 style="margin: 10px 0 8px;">جاري تحليل البيانات...</h2>
+        <p class="hint">نقرأ العميل والعنوان والأصناف ونجهز صفحة مراجعة المنتجات.</p>
+      </div>
+    </section>
+
+    <section id="reviewStep" class="step">
+      <div class="card">
+        <h2 style="margin: 0 0 6px;">ارجو مراجعة المنتجات</h2>
+        <p class="hint">يمكنك تعديل الكميات أو حذف صنف أو إضافة صنف قبل المتابعة.</p>
+        <div id="reviewItems"></div>
+        <div class="summary" style="margin-top: 14px;">
+          <div class="summary-line"><span>مجموع المنتجات</span><span id="reviewSubTotal">0.000 د.ك</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top: 0;">إضافة منتج</h3>
+        <input id="productSearch" type="search" placeholder="ابحث عن منتج لإضافته" oninput="renderProductSearch()">
+        <div id="productSearchResults" class="search-results"></div>
+      </div>
+
+      <button class="success-btn" onclick="showCheckoutStep()">تم المراجعة</button>
+    </section>
+
+    <section id="checkoutStep" class="step">
+      <div class="card">
+        <h2 style="margin-top:0;">معلومات العميل والإنهاء</h2>
+        <div class="row">
+          <label>اسم العميل<input id="customerName" type="text"></label>
+          <label>رقم الهاتف<input id="customerPhone" type="tel" oninput="this.value = convertToEnglishNumbers(this.value)"></label>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <div style="font-weight:900; margin-bottom:8px;">نوع الطلب</div>
+          <div class="pill-row">
+            <button id="deliveryTypeBtn" class="pill" onclick="setOrderType('delivery')">توصيل</button>
+            <button id="pickupTypeBtn" class="pill" onclick="setOrderType('pickup')">استلام</button>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <div style="font-weight:900; margin-bottom:8px;">طريقة الدفع</div>
+          <div class="pill-row three">
+            <button id="cashPayBtn" class="pill" onclick="setPaymentMethod('cash')">كاش</button>
+            <button id="onlinePayBtn" class="pill" onclick="setPaymentMethod('online')">أونلاين</button>
+            <button id="knetPayBtn" class="pill" onclick="setPaymentMethod('knet')">كي-نت</button>
+          </div>
+        </div>
+
+        <div id="deliveryFields" style="margin-top: 14px;">
+          <div class="row two">
+            <label>المنطقة
+              <select id="deliveryArea" onchange="toggleManualArea(); updateTotals();">
+                <option value="">اختر المنطقة</option>
+              </select>
+            </label>
+            <label>سعر التوصيل<input id="deliveryPrice" type="text" value="0.000" oninput="this.value = convertToEnglishNumbers(this.value); updateTotals();"></label>
+          </div>
+          <input id="manualArea" class="hidden" type="text" placeholder="اكتب المنطقة يدويًا" style="margin-top:10px;">
+          <label style="display:block; margin-top:10px;">تفاصيل العنوان<textarea id="addressDetails" style="min-height:90px;"></textarea></label>
+        </div>
+
+        <div class="summary" style="margin-top: 16px;">
+          <div class="summary-line"><span>مجموع المنتجات</span><span id="checkoutSubTotal">0.000 د.ك</span></div>
+          <div class="summary-line"><span>سعر التوصيل</span><span id="checkoutDeliveryTotal">0.000 د.ك</span></div>
+          <div class="summary-line total"><span>الإجمالي</span><span id="checkoutGrandTotal">0.000 د.ك</span></div>
+        </div>
+
+        <button class="success-btn" style="margin-top: 16px;" onclick="saveInvoice()">حفظ وطباعة الفاتورة</button>
+        <button class="ghost-btn" style="width:100%; margin-top:10px;" onclick="showStep('reviewStep')">رجوع لمراجعة المنتجات</button>
+      </div>
+    </section>
+
+    <section id="doneStep" class="step">
+      <div class="card">
+        <h2 style="margin-top:0;">تم حفظ الفاتورة</h2>
+        <div id="savedInvoiceBox" class="receipt"></div>
+        <button class="primary-btn" style="margin-top: 12px;" onclick="window.print()">طباعة</button>
+        <button class="success-btn" style="margin-top: 10px;" onclick="startNewInvoice()">فاتورة جديدة</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAxjBBtAnpThJoliccuoq0NNIABGPv1dJg",
+      authDomain: "fawatir-b6119.firebaseapp.com",
+      databaseURL: "https://fawatir-b6119-default-rtdb.firebaseio.com",
+      projectId: "fawatir-b6119",
+      storageBucket: "fawatir-b6119.firebasestorage.app",
+      messagingSenderId: "575777677956",
+      appId: "1:575777677956:web:74794fdd3525f2693d18d1"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const areas = [
+      'السرة', 'الزهراء', 'السلام', 'حطين', 'الشهداء', 'الرميثية', 'عبدالله السالم', 'الجابرية', 'بيان', 'الصديق',
+      'الفروانية', 'خيطان', 'حولي', 'السالمية', 'صباح السالم', 'سلوى', 'العدان', 'الشعب', 'الجهراء', 'الفنطاس',
+      'سعد العبدالله', 'العقيلة', 'جابر العلي', 'جابر الاحمد', 'المهبولة', 'المنقف', 'الاحمدي', 'الصليبية',
+      'الصباحية', 'فهد الاحمد', 'صبحان', 'ابو فطيرة', 'ابو الحصانية', 'الفحيحيل', 'جليب الشيوخ', 'ام الهيمان',
+      'المطلاع', 'صباح الاحمد', 'الوفرة'
+    ];
+
+    let allProducts = [];
+    let allCustomers = [];
+    let currentOrder = createEmptyOrder();
+    let recognition = null;
+    let isListening = false;
+    let isAnalyzing = false;
+    let finalTranscript = '';
+    let interimTranscript = '';
+
+    function createEmptyOrder() {
+      return {
+        items: [],
+        customer: null,
+        deliveryPrice: 0,
+        orderType: 'delivery',
+        paymentMethod: 'cash',
+        selectedAddress: null,
+        discountType: 'none',
+        discountValue: 0,
+        discountAmount: 0
+      };
+    }
+
+    function setupData() {
+      db.ref('products').on('value', snapshot => {
+        allProducts = snapshot.val() ? Object.entries(snapshot.val()).map(([id, data]) => ({ id, ...data })) : [];
+        renderProductSearch();
+      });
+      db.ref('customers').on('value', snapshot => {
+        allCustomers = snapshot.val() ? Object.entries(snapshot.val()).map(([id, data]) => ({ id, ...data })) : [];
+      });
+      fillAreas();
+    }
+
+    function fillAreas() {
+      const select = document.getElementById('deliveryArea');
+      if (!select) return;
+      select.innerHTML = '<option value="">اختر المنطقة</option>' +
+        areas.map(area => `<option value="${escapeHtml(area)}">${escapeHtml(area)}</option>`).join('') +
+        '<option value="أخرى">أخرى</option>';
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function convertToEnglishNumbers(str) {
+      str = String(str ?? '');
+      const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+      const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+      for (let i = 0; i < 10; i++) str = str.replace(new RegExp(arabicNumbers[i], 'g'), englishNumbers[i]);
+      return str;
+    }
+
+    function normalizeVoiceText(value) {
+      return convertToEnglishNumbers(value || '')
+        .toString()
+        .toLowerCase()
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/[ئ]/g, 'ي')
+        .replace(/[ؤ]/g, 'و')
+        .replace(/[ة]/g, 'ه')
+        .replace(/[ى]/g, 'ي')
+        .replace(/[ًٌٍَُِّْـ]/g, '')
+        .replace(/(?:بيتي|بتي|بيت)\s*فور/g, 'بيتفور')
+        .replace(/شيكولاته|شكولاته|شوكلاته/g, 'شوكولاته')
+        .replace(/[^\u0600-\u06FFa-z0-9.\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function formatMoney(value) {
+      return `${(parseFloat(value) || 0).toFixed(3)} د.ك`;
+    }
+
+    function showStep(stepId) {
+      document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
+      document.getElementById(stepId)?.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function setStatus(message, isError = false) {
+      const status = document.getElementById('status');
+      if (!status) return;
+      status.textContent = message;
+      status.className = `status ${isError ? 'error' : ''}`;
+    }
+
+    function getRecognitionConstructor() {
+      return window.SpeechRecognition || window.webkitSpeechRecognition;
+    }
+
+    function updateMicButton() {
+      const btn = document.getElementById('micBtn');
+      if (!btn) return;
+      btn.className = `mic-btn ${isListening ? 'listening' : ''}`;
+      btn.textContent = isListening ? '⏹' : '🎙️';
+    }
+
+    function updateTranscript() {
+      const el = document.getElementById('transcript');
+      if (!el) return;
+      const finalText = finalTranscript.trim();
+      const interimText = interimTranscript.trim();
+      if (!finalText && !interimText) {
+        el.innerHTML = '<span class="muted">سيظهر الكلام هنا أثناء التسجيل...</span>';
+        return;
+      }
+      el.innerHTML = `${escapeHtml(finalText)} ${interimText ? `<span class="muted">${escapeHtml(interimText)}</span>` : ''}`;
+    }
+
+    function startListening() {
+      const Recognition = getRecognitionConstructor();
+      if (!Recognition) {
+        setStatus('المتصفح لا يدعم التعرف على الصوت. استخدم Chrome أو اكتب الطلب.', true);
+        return;
+      }
+      if (!recognition) {
+        recognition = new Recognition();
+        recognition.lang = 'ar-KW';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.onresult = event => {
+          let interim = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) finalTranscript += `${transcript} `;
+            else interim += transcript;
+          }
+          interimTranscript = interim;
+          updateTranscript();
+        };
+        recognition.onerror = event => {
+          setStatus(event.error === 'not-allowed' ? 'لم يتم السماح باستخدام المايك.' : `حدث خطأ في المايك: ${event.error}`, true);
+        };
+        recognition.onend = () => {
+          if (isListening && !isAnalyzing) {
+            setTimeout(() => {
+              try { recognition.start(); } catch (error) { console.warn('restart skipped', error); }
+            }, 250);
+          }
+        };
+      }
+      try {
+        isListening = true;
+        recognition.start();
+        setStatus('المايك مفتوح، تكلم الآن...');
+      } catch (error) {
+        console.warn('start skipped', error);
+      }
+      updateMicButton();
+    }
+
+    function stopListening(shouldAnalyze = true) {
+      isListening = false;
+      updateMicButton();
+      if (recognition) {
+        try { recognition.stop(); } catch (error) { console.warn('stop skipped', error); }
+      }
+      if (shouldAnalyze) analyzeCommand();
+    }
+
+    function toggleMic() {
+      if (isListening) stopListening(true);
+      else startListening();
+    }
+
+    function submitCommand() {
+      if (isListening) stopListening(false);
+      analyzeCommand();
+    }
+
+    function extractVoicePhone(text) {
+      const converted = convertToEnglishNumbers(text || '');
+      const phonePattern = /(?:رقم(?:ه|ها)?|هاتف(?:ه|ها)?|تلفون(?:ه|ها)?|تليفون(?:ه|ها)?|موبايل(?:ه|ها)?|نقال(?:ه|ها)?)[^\d]*(\+?965[\s-]*)?([0-9\s-]{8,})/i;
+      const phoneMatch = converted.match(phonePattern);
+      let digits = phoneMatch ? `${phoneMatch[1] || ''}${phoneMatch[2] || ''}`.replace(/\D/g, '') : '';
+      if (!digits) {
+        const allDigits = converted.replace(/\D/g, '');
+        if (allDigits.length >= 8) digits = allDigits;
+      }
+      if (digits.startsWith('965') && digits.length >= 11) digits = digits.slice(3, 11);
+      else if (digits.length > 8) digits = digits.slice(-8);
+      if (digits.length !== 8) return null;
+      return { local: digits, full: `965${digits}` };
+    }
+
+    function extractVoiceCustomerName(text) {
+      const clean = (text || '').replace(/\s+/g, ' ').trim();
+      const patterns = [
+        /(?:باسم|اسم العميل|للعميل|لعميل|عميل اسمه)\s+(.+?)(?=\s+(?:رقم|هاتف|تلفون|تليفون|موبايل|نقال|عنوان|العنوان|منطقه|منطقة|والمنتجات|المنتجات|يريد|يبي|يبى|الدفع|طريقة الدفع|سعر التوصيل)|$)/i,
+        /(?:انشئ|اعمل|سوي|سو)\s+فاتوره\s+(.+?)(?=\s+(?:رقم|هاتف|تلفون|تليفون|موبايل|نقال|عنوان|العنوان|منطقه|منطقة|والمنتجات|المنتجات|يريد|يبي|يبى|الدفع|طريقة الدفع|سعر التوصيل)|$)/i
+      ];
+      for (const pattern of patterns) {
+        const match = clean.match(pattern);
+        if (match && match[1]) return match[1].replace(/^باسم\s+/i, '').trim();
+      }
+      return '';
+    }
+
+    function extractVoiceAddress(text) {
+      const clean = (text || '').replace(/\s+/g, ' ').trim();
+      const areaFromKnownList = areas.find(area => normalizeVoiceText(clean).includes(normalizeVoiceText(area)));
+      const addressMatch = clean.match(/(?:عنوان(?:ه|ها)?|العنوان|منطقه|منطقة|التوصيل الي|توصيل الي)\s+(.+?)(?=\s+(?:والمنتجات|المنتجات|يريد|يبي|يبى|وطلب|الدفع|طريقة الدفع|كاش|كي|اونلاين|أونلاين|سعر\s+(?:التوصيل|الدليفري|دليفري)|رسوم\s+(?:التوصيل|الدليفري|دليفري)|(?:قيمة|قيمه|أجرة|اجرة)\s+(?:التوصيل|الدليفري|دليفري))|$)/i);
+      const rawDetails = addressMatch ? addressMatch[1].trim() : '';
+      const area = areaFromKnownList || rawDetails.split(' ')[0] || '';
+      const areaWordCount = normalizeVoiceText(area).split(' ').filter(Boolean).length;
+      let details = rawDetails;
+      if (area && details) {
+        const normalizedArea = normalizeVoiceText(area);
+        const normalizedDetails = normalizeVoiceText(details);
+        if (normalizedDetails === normalizedArea) details = '';
+        else if (normalizedDetails.startsWith(`${normalizedArea} `)) details = details.split(/\s+/).slice(areaWordCount).join(' ').trim();
+      }
+      if (!area && !details) return null;
+      return { area, details };
+    }
+
+    function extractVoiceDeliveryPrice(text) {
+      const normalized = normalizeVoiceText(text);
+      const match = normalized.match(/(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)\s*(?:التوصيل|الدليفري|دليفري|توصيل)\s*(\d+(?:\.\d+)?)/)
+        || normalized.match(/(?:التوصيل|الدليفري|دليفري)\s*(?:ب|بـ|بسعر)?\s*(\d+(?:\.\d+)?)/);
+      if (!match) return 0;
+      const deliveryPrice = parseFloat(match[1]);
+      return Number.isFinite(deliveryPrice) && deliveryPrice >= 0 ? parseFloat(deliveryPrice.toFixed(3)) : 0;
+    }
+
+    function extractVoicePaymentMethod(text) {
+      const normalized = normalizeVoiceText(text);
+      if (/(كي\s*نت|كي-نت|knet|كي نت)/i.test(normalized)) return 'knet';
+      if (/(اونلاين|online|رابط|لينك)/i.test(normalized)) return 'online';
+      if (/(كاش|نقد)/i.test(normalized)) return 'cash';
+      return 'cash';
+    }
+
+    function parseVoiceQuantity(value) {
+      const normalized = normalizeVoiceText(value);
+      const explicitDigitMatch = normalized.match(/(?:عدد|كميه|كمية|حبه|حبة|حبات)\s*(\d+(?:\.\d+)?)/);
+      if (explicitDigitMatch) return parseFloat(explicitDigitMatch[1]) || 1;
+      const startOrEndDigitMatch = normalized.match(/^(?:\d+(?:\.\d+)?)\s|(?:^|\s)(\d+(?:\.\d+)?)$/);
+      if (startOrEndDigitMatch) return parseFloat(startOrEndDigitMatch[1] || startOrEndDigitMatch[0]) || 1;
+      const wordNumbers = [
+        ['عشره', 10], ['تسعه', 9], ['ثمانيه', 8], ['سبعه', 7], ['سته', 6],
+        ['خمسه', 5], ['اربعه', 4], ['ثلاثه', 3], ['اثنين', 2], ['ثنين', 2],
+        ['واحد', 1], ['حبه', 1], ['حبتين', 2]
+      ];
+      const explicitWord = wordNumbers.find(([word]) => new RegExp(`(?:عدد|كميه|كمية|حبه|حبة|حبات)\\s+${word}(?:\\s|$)`).test(normalized));
+      if (explicitWord) return explicitWord[1];
+      const found = wordNumbers.find(([word]) => normalized === word || normalized.startsWith(`${word} `) || normalized.endsWith(` ${word}`));
+      return found ? found[1] : 1;
+    }
+
+    function extractVoiceProductsPhrase(text) {
+      const clean = (text || '').toString().replace(/\r/g, '\n').trim();
+      const stopPattern = '(?=\\s+(?:والدفع|الدفع|طريقة الدفع|كاش|كي\\s*نت|اونلاين|أونلاين|رابط|عنوان|العنوان|رقم|هاتف|سعر\\s+التوصيل)|$)';
+      const sectionMatch = clean.match(new RegExp(`(?:^|[\\s،,])(?:والمنتجات|المنتجات|الاصناف|الأصناف)\\s*[:：\\-]?\\s*([\\s\\S]+?)${stopPattern}`, 'i'));
+      if (sectionMatch) return sectionMatch[1].trim();
+      const commandMatch = clean.match(new RegExp(`(?:^|[\\s،,])(?:يريد|يبي|يبى|طلب|وطلب)\\s*[:：\\-]?\\s+([\\s\\S]+?)${stopPattern}`, 'i'));
+      return commandMatch ? commandMatch[1].trim() : clean;
+    }
+
+    const voiceProductStopWords = new Set([
+      'عدد', 'كميه', 'كمية', 'حبه', 'حبة', 'حبات', 'واحد', 'اثنين', 'ثنين',
+      'ثلاثه', 'اربعه', 'خمسه', 'سته', 'سبعه', 'ثمانيه', 'تسعه', 'عشره',
+      'اريد', 'ابي', 'ابغى', 'يبي', 'يبى', 'طلب', 'اطلب', 'والمنتجات', 'المنتجات', 'درزن'
+    ]);
+
+    function getVoiceProductTokens(value) {
+      return normalizeVoiceText(value)
+        .split(' ')
+        .map(token => token.trim())
+        .filter(token => token.length > 1 && !/^\d+(?:\.\d+)?$/.test(token) && !voiceProductStopWords.has(token));
+    }
+
+    function getVoiceTokenDistance(a, b) {
+      if (a === b) return 0;
+      const rows = a.length + 1;
+      const cols = b.length + 1;
+      const dp = Array.from({ length: rows }, () => Array(cols).fill(0));
+      for (let i = 0; i < rows; i++) dp[i][0] = i;
+      for (let j = 0; j < cols; j++) dp[0][j] = j;
+      for (let i = 1; i < rows; i++) {
+        for (let j = 1; j < cols; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+      }
+      return dp[a.length][b.length];
+    }
+
+    function areVoiceTokensSimilar(a, b) {
+      if (!a || !b) return false;
+      if (a === b) return true;
+      if (a.length >= 3 && b.length >= 3 && (a.includes(b) || b.includes(a))) return true;
+      return Math.max(a.length, b.length) >= 4 && getVoiceTokenDistance(a, b) <= 1;
+    }
+
+    function splitVoiceProductSegments(text) {
+      const productsPhrase = extractVoiceProductsPhrase(text)
+        .replace(/(\d+(?:\.\d+)?)\s+(?=(?:درزن|كوكيز|فطاير|فطائر|كيك|بيتزا|مشروب|عصير|سلطه|سلطة|صحن|طبق|علبه|علبة|ساندويتش|[ء-ي]{3,}\s+[ء-ي]{3,}))/g, '$1\n')
+        .replace(/(^|\s)(واحد|وحده|حبه|حبتين|اثنين|ثنين|ثنتين|ثلاثه|اربعه|خمسه|سته|سبعه|ثمانيه|تسعه|عشره)\s+(?=(?:درزن|كوكيز|فطاير|فطائر|كيك|بيتزا|مشروب|عصير|سلطه|سلطة|صحن|طبق|علبه|علبة|ساندويتش|[ء-ي]{3,}\s+[ء-ي]{3,}))/g, '$1$2\n');
+
+      return productsPhrase
+        .split(/\n+|،|,|\s+و\s+/)
+        .map(segment => segment.replace(/^(?:المنتجات|الاصناف|الأصناف|يريد|يبي|يبى|طلب|وطلب|ابي|ابغى)\s+/i, '').trim())
+        .filter(segment => {
+          const normalized = normalizeVoiceText(segment);
+          return normalized.length > 1 && !/^(الدفع|طريقة الدفع|كاش|كي نت|اونلاين|رابط)$/.test(normalized);
+        });
+    }
+
+    function getSafeVoiceQuantity(value) {
+      const qty = parseFloat(value);
+      if (!Number.isFinite(qty) || qty <= 0) return 1;
+      return qty > 99 ? 1 : qty;
+    }
+
+    function extractVoiceQuantityFromSegment(segment) {
+      const normalized = normalizeVoiceText(segment);
+      const explicitQuantity = normalized.match(/(?:عدد|كميه|كمية|حبه|حبة|حبات)\s*(\d+(?:\.\d+)?)/);
+      if (explicitQuantity) return getSafeVoiceQuantity(explicitQuantity[1]);
+      const endQuantity = normalized.match(/(\d+(?:\.\d+)?)\s*$/);
+      if (endQuantity) return getSafeVoiceQuantity(endQuantity[1]);
+      const startQuantity = normalized.match(/^(\d+(?:\.\d+)?)\s+/);
+      if (startQuantity) return getSafeVoiceQuantity(startQuantity[1]);
+      return getSafeVoiceQuantity(parseVoiceQuantity(normalized));
+    }
+
+    function scoreVoiceProductMatch(segment, product) {
+      const normalizedSegment = normalizeVoiceText(segment);
+      if (normalizedSegment.length < 2) return 0;
+      const productNames = [product.nameAr, product.nameEn].filter(Boolean).map(normalizeVoiceText).filter(Boolean);
+      const segmentTokens = getVoiceProductTokens(segment);
+      let bestScore = 0;
+      productNames.forEach(name => {
+        if (!name) return;
+        if (normalizedSegment.includes(name) || name.includes(normalizedSegment)) {
+          bestScore = Math.max(bestScore, 1);
+          return;
+        }
+        const nameWords = getVoiceProductTokens(name);
+        const productHits = nameWords.filter(nameWord => segmentTokens.some(segmentWord => areVoiceTokensSimilar(segmentWord, nameWord))).length;
+        const segmentHits = segmentTokens.filter(segmentWord => nameWords.some(nameWord => areVoiceTokensSimilar(segmentWord, nameWord))).length;
+        const productCoverage = nameWords.length ? productHits / nameWords.length : 0;
+        const segmentCoverage = segmentTokens.length ? segmentHits / segmentTokens.length : 0;
+        const segmentScore = segmentTokens.length >= 2 ? segmentCoverage * 0.95 : segmentCoverage * 0.45;
+        bestScore = Math.max(bestScore, Math.max(productCoverage, segmentScore));
+      });
+      return bestScore;
+    }
+
+    function extractVoiceProducts(text) {
+      const matches = [];
+      const matchedIds = new Set();
+      const unmatchedSegments = [];
+      const segments = splitVoiceProductSegments(text);
+
+      segments.forEach(segment => {
+        const rankedMatches = allProducts
+          .filter(product => !matchedIds.has(product.id))
+          .map(product => ({
+            product,
+            score: scoreVoiceProductMatch(segment, product),
+            tokenCount: getVoiceProductTokens(`${product.nameAr || ''} ${product.nameEn || ''}`).length,
+            nameLength: String(product.nameAr || product.nameEn || '').length
+          }))
+          .sort((a, b) => b.score - a.score || b.tokenCount - a.tokenCount || b.nameLength - a.nameLength);
+        const best = rankedMatches[0];
+        if (best && best.score >= 0.5) {
+          matchedIds.add(best.product.id);
+          matches.push({ product: best.product, quantity: extractVoiceQuantityFromSegment(segment) });
+        } else if (!/(منتجات|اصناف|الدفع|عنوان|رقم|سعر التوصيل)/.test(normalizeVoiceText(segment))) {
+          unmatchedSegments.push(segment);
+        }
+      });
+
+      return { matches, unmatchedSegments };
+    }
+
+    function addProductToOrder(product, quantity = 1) {
+      const qty = getSafeVoiceQuantity(quantity);
+      const existing = currentOrder.items.find(item => item.productId === product.id);
+      if (existing) {
+        existing.quantity += qty;
+        existing.total = existing.quantity * existing.price;
+      } else {
+        currentOrder.items.push({
+          productId: product.id,
+          productName: product.nameAr || product.nameEn || 'بدون اسم',
+          productNameEn: product.nameEn || '',
+          price: parseFloat(product.price) || 0,
+          quantity: qty,
+          unit: product.unit || '',
+          notes: '',
+          total: (parseFloat(product.price) || 0) * qty
+        });
+      }
+    }
+
+    function findCustomerByVoicePhone(phone) {
+      if (!phone) return null;
+      return allCustomers.find(customer => {
+        const storedPhone = convertToEnglishNumbers(customer.phone || '').replace(/\D/g, '');
+        return storedPhone.endsWith(phone.local) || storedPhone === phone.full;
+      }) || null;
+    }
+
+    async function analyzeCommand() {
+      if (isAnalyzing) return;
+      if (allProducts.length === 0) {
+        setStatus('جاري تحميل المنتجات. حاول بعد ثواني قليلة.', true);
+        return;
+      }
+
+      isAnalyzing = true;
+      const manualText = document.getElementById('manualInput')?.value || '';
+      const fullText = `${finalTranscript} ${interimTranscript} ${manualText}`.trim();
+      interimTranscript = '';
+      updateTranscript();
+
+      if (!fullText) {
+        setStatus('اكتب الطلب أو سجل بالصوت أولًا.', true);
+        isAnalyzing = false;
+        return;
+      }
+
+      showStep('analysisStep');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const phone = extractVoicePhone(fullText);
+      const productsResult = extractVoiceProducts(fullText);
+      const address = extractVoiceAddress(fullText);
+      const deliveryPrice = extractVoiceDeliveryPrice(fullText);
+      const existingCustomer = findCustomerByVoicePhone(phone);
+      const customerName = extractVoiceCustomerName(fullText) || existingCustomer?.name || '';
+
+      const issues = [];
+      if (!phone) issues.push('رقم الهاتف غير واضح.');
+      if (!customerName && !existingCustomer) issues.push('اسم العميل غير واضح.');
+      if (productsResult.matches.length === 0) issues.push('لم أتعرف على أي صنف.');
+      if (productsResult.unmatchedSegments.length > 0) issues.push(`أصناف غير واضحة: ${productsResult.unmatchedSegments.join('، ')}`);
+
+      if (issues.length) {
+        renderIssues(issues);
+        showStep('inputStep');
+        isAnalyzing = false;
+        return;
+      }
+
+      currentOrder = createEmptyOrder();
+      currentOrder.customer = { name: customerName, phone: phone.full, existingId: existingCustomer?.id || '' };
+      currentOrder.selectedAddress = address;
+      currentOrder.deliveryPrice = deliveryPrice;
+      currentOrder.orderType = address || /(توصيل|دليفري|عنوان)/.test(normalizeVoiceText(fullText)) ? 'delivery' : 'pickup';
+      currentOrder.paymentMethod = extractVoicePaymentMethod(fullText);
+      productsResult.matches.forEach(item => addProductToOrder(item.product, item.quantity));
+
+      renderReview();
+      showStep('reviewStep');
+      isAnalyzing = false;
+    }
+
+    function renderIssues(issues) {
+      const box = document.getElementById('issuesBox');
+      if (!box) return;
+      box.className = 'issue-box show';
+      box.innerHTML = `<strong>أحتاج معلومات إضافية:</strong><br>${issues.map(item => `- ${escapeHtml(item)}`).join('<br>')}`;
+    }
+
+    function renderReview() {
+      const container = document.getElementById('reviewItems');
+      if (!container) return;
+      if (currentOrder.items.length === 0) {
+        container.innerHTML = '<div class="hint">لا توجد منتجات.</div>';
+      } else {
+        container.innerHTML = currentOrder.items.map((item, index) => `
+          <div class="item-card">
+            <div class="item-head">
+              <div>
+                <div class="item-title">${escapeHtml(item.productName)}</div>
+                ${item.productNameEn ? `<div class="item-sub">${escapeHtml(item.productNameEn)}</div>` : ''}
+              </div>
+              <button class="small-btn danger-btn" onclick="removeItem(${index})">حذف</button>
+            </div>
+            <div class="qty-row">
+              <button class="qty-btn" onclick="changeQty(${index}, -1)">-</button>
+              <input class="qty-input" value="${item.quantity}" oninput="setQty(${index}, this.value)">
+              <button class="qty-btn" onclick="changeQty(${index}, 1)">+</button>
+              <div class="price">${formatMoney(item.total)}</div>
+            </div>
+            <textarea style="min-height:70px; margin-top:10px;" placeholder="ملاحظة للصنف" oninput="setNote(${index}, this.value)">${escapeHtml(item.notes || '')}</textarea>
+          </div>
+        `).join('');
+      }
+      document.getElementById('reviewSubTotal').textContent = formatMoney(getSubTotal());
+      renderProductSearch();
+    }
+
+    function getSubTotal() {
+      return currentOrder.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+    }
+
+    function changeQty(index, delta) {
+      const item = currentOrder.items[index];
+      if (!item) return;
+      item.quantity = Math.max(0.001, (parseFloat(item.quantity) || 1) + delta);
+      item.total = item.quantity * item.price;
+      renderReview();
+    }
+
+    function setQty(index, value) {
+      const item = currentOrder.items[index];
+      if (!item) return;
+      const qty = parseFloat(convertToEnglishNumbers(value));
+      if (!Number.isFinite(qty) || qty <= 0) return;
+      item.quantity = qty;
+      item.total = item.quantity * item.price;
+      renderReview();
+    }
+
+    function setNote(index, value) {
+      if (!currentOrder.items[index]) return;
+      currentOrder.items[index].notes = (value || '').trim();
+    }
+
+    function removeItem(index) {
+      currentOrder.items.splice(index, 1);
+      renderReview();
+    }
+
+    function renderProductSearch() {
+      const input = document.getElementById('productSearch');
+      const results = document.getElementById('productSearchResults');
+      if (!input || !results) return;
+      const term = normalizeVoiceText(input.value || '');
+      if (!term) {
+        results.innerHTML = '';
+        return;
+      }
+      const filtered = allProducts
+        .map(product => ({ product, score: scoreVoiceProductMatch(term, product) }))
+        .filter(item => item.score >= 0.3 || normalizeVoiceText(`${item.product.nameAr || ''} ${item.product.nameEn || ''}`).includes(term))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 20);
+
+      results.innerHTML = filtered.length
+        ? filtered.map(({ product }) => `
+          <button class="search-result" onclick="addSearchedProduct('${product.id}')">
+            <strong>${escapeHtml(product.nameAr || product.nameEn || 'بدون اسم')}</strong>
+            <div class="muted">${escapeHtml(product.nameEn || '')}</div>
+            <div class="price">${formatMoney(product.price)}</div>
+          </button>
+        `).join('')
+        : '<div class="hint">لا توجد نتائج.</div>';
+    }
+
+    function addSearchedProduct(productId) {
+      const product = allProducts.find(item => item.id === productId);
+      if (!product) return;
+      addProductToOrder(product, 1);
+      document.getElementById('productSearch').value = '';
+      renderReview();
+    }
+
+    function showCheckoutStep() {
+      if (currentOrder.items.length === 0) {
+        alert('لا توجد منتجات في الفاتورة.');
+        return;
+      }
+      document.getElementById('customerName').value = currentOrder.customer?.name || '';
+      const phone = convertToEnglishNumbers(currentOrder.customer?.phone || '').replace(/^965/, '');
+      document.getElementById('customerPhone').value = phone;
+      setOrderType(currentOrder.orderType || 'delivery');
+      setPaymentMethod(currentOrder.paymentMethod || 'cash');
+      fillAreas();
+      const area = currentOrder.selectedAddress?.area || '';
+      const areaSelect = document.getElementById('deliveryArea');
+      if (areaSelect) areaSelect.value = areas.includes(area) ? area : (area ? 'أخرى' : '');
+      document.getElementById('manualArea').value = areas.includes(area) ? '' : area;
+      document.getElementById('deliveryPrice').value = (parseFloat(currentOrder.deliveryPrice) || 0).toFixed(3);
+      document.getElementById('addressDetails').value = currentOrder.selectedAddress?.details || '';
+      toggleManualArea();
+      updateTotals();
+      showStep('checkoutStep');
+    }
+
+    function setOrderType(type) {
+      currentOrder.orderType = type;
+      document.getElementById('deliveryTypeBtn')?.classList.toggle('active', type === 'delivery');
+      document.getElementById('pickupTypeBtn')?.classList.toggle('active', type === 'pickup');
+      document.getElementById('deliveryFields')?.classList.toggle('hidden', type !== 'delivery');
+      updateTotals();
+    }
+
+    function setPaymentMethod(method) {
+      currentOrder.paymentMethod = method;
+      document.getElementById('cashPayBtn')?.classList.toggle('active', method === 'cash');
+      document.getElementById('onlinePayBtn')?.classList.toggle('active', method === 'online');
+      document.getElementById('knetPayBtn')?.classList.toggle('active', method === 'knet');
+    }
+
+    function toggleManualArea() {
+      const select = document.getElementById('deliveryArea');
+      document.getElementById('manualArea')?.classList.toggle('hidden', select?.value !== 'أخرى');
+    }
+
+    function updateTotals() {
+      const subTotal = getSubTotal();
+      const deliveryPrice = currentOrder.orderType === 'delivery'
+        ? (parseFloat(convertToEnglishNumbers(document.getElementById('deliveryPrice')?.value || '0')) || 0)
+        : 0;
+      currentOrder.deliveryPrice = deliveryPrice;
+      document.getElementById('checkoutSubTotal').textContent = formatMoney(subTotal);
+      document.getElementById('checkoutDeliveryTotal').textContent = formatMoney(deliveryPrice);
+      document.getElementById('checkoutGrandTotal').textContent = formatMoney(subTotal + deliveryPrice);
+    }
+
+    async function generateInvoiceNumber(branch) {
+      const counterRef = db.ref('invoiceCounters/' + encodeURIComponent(branch));
+      const snapshot = await counterRef.once('value');
+      const currentCounter = (snapshot.val() || 0) + 1;
+      await counterRef.set(currentCounter);
+      return currentCounter.toString().padStart(3, '0');
+    }
+
+    function getTotals() {
+      const subTotal = getSubTotal();
+      const deliveryPrice = currentOrder.orderType === 'delivery' ? (parseFloat(currentOrder.deliveryPrice) || 0) : 0;
+      return {
+        subTotal: parseFloat(subTotal.toFixed(3)),
+        deliveryPrice: parseFloat(deliveryPrice.toFixed(3)),
+        total: parseFloat((subTotal + deliveryPrice).toFixed(3))
+      };
+    }
+
+    async function saveCustomerIfNeeded(customer, address) {
+      const phoneDigits = convertToEnglishNumbers(customer.phone || '').replace(/\D/g, '');
+      const existing = allCustomers.find(item => convertToEnglishNumbers(item.phone || '').replace(/\D/g, '') === phoneDigits || convertToEnglishNumbers(item.phone || '').replace(/\D/g, '').endsWith(phoneDigits.slice(-8)));
+      if (existing) {
+        if (address) {
+          existing.addresses = Array.isArray(existing.addresses) ? existing.addresses : [];
+          const exists = existing.addresses.some(addr => normalizeVoiceText(addr.area) === normalizeVoiceText(address.area) && normalizeVoiceText(addr.details) === normalizeVoiceText(address.details));
+          if (!exists) {
+            existing.addresses.push(address);
+            await db.ref(`customers/${existing.id}`).set(existing);
+          }
+        }
+        return existing.id;
+      }
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      await db.ref(`customers/${id}`).set({ id, name: customer.name, phone: customer.phone, addresses: address ? [address] : [] });
+      return id;
+    }
+
+    async function saveInvoice() {
+      const name = (document.getElementById('customerName')?.value || '').trim();
+      const phone = convertToEnglishNumbers(document.getElementById('customerPhone')?.value || '').replace(/\D/g, '');
+      if (!name || phone.length < 8) {
+        alert('أدخل اسم العميل ورقم الهاتف.');
+        return;
+      }
+      if (currentOrder.items.length === 0) {
+        alert('لا توجد منتجات.');
+        return;
+      }
+
+      let selectedAddress = null;
+      if (currentOrder.orderType === 'delivery') {
+        let area = document.getElementById('deliveryArea')?.value || '';
+        if (area === 'أخرى') area = (document.getElementById('manualArea')?.value || '').trim();
+        const details = (document.getElementById('addressDetails')?.value || '').trim();
+        if (!area || !details) {
+          alert('أدخل المنطقة وتفاصيل العنوان.');
+          return;
+        }
+        selectedAddress = { area, details };
+      }
+
+      updateTotals();
+      const branch = 'الفرع الرئيسي';
+      const invoiceNumber = await generateInvoiceNumber(branch);
+      const totals = getTotals();
+      const customer = { name, phone: phone.startsWith('965') ? phone : `965${phone.slice(-8)}` };
+      await saveCustomerIfNeeded(customer, selectedAddress);
+
+      const order = {
+        invoiceNumber,
+        timestamp: Date.now(),
+        cashier: 'Ai',
+        cashierCode: 'AI',
+        branch,
+        customerName: customer.name,
+        phoneNumber: customer.phone,
+        orderType: currentOrder.orderType,
+        paymentMethod: currentOrder.paymentMethod,
+        address: selectedAddress ? `${selectedAddress.area} - ${selectedAddress.details}` : '',
+        items: currentOrder.items.map(item => ({
+          productId: item.productId || '',
+          productName: item.productName || '',
+          productNameEn: item.productNameEn || '',
+          price: parseFloat(item.price) || 0,
+          quantity: parseFloat(item.quantity) || 0,
+          total: parseFloat(item.total) || 0,
+          unit: item.unit || '',
+          notes: item.notes || ''
+        })),
+        subTotal: totals.subTotal,
+        deliveryPrice: totals.deliveryPrice,
+        discountType: 'none',
+        discountValue: 0,
+        discountAmount: 0,
+        total: totals.total
+      };
+
+      try {
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+        await db.ref(`orders/${id}`).set({ ...order, id });
+        showSavedInvoice(order);
+      } catch (error) {
+        console.error(error);
+        alert('حدث خطأ أثناء حفظ الفاتورة.');
+      }
+    }
+
+    function getPaymentLabel(method) {
+      if (method === 'cash') return 'كاش';
+      if (method === 'knet') return 'كي-نت';
+      return 'أونلاين';
+    }
+
+    function showSavedInvoice(order) {
+      const box = document.getElementById('savedInvoiceBox');
+      box.innerHTML = `
+        <div style="text-align:center; font-weight:900; font-size:18px;">مطعم التين الطبيعي</div>
+        <div style="text-align:center; margin-bottom:10px;">فاتورة رقم #${escapeHtml(order.invoiceNumber)}</div>
+        <div><strong>العميل:</strong> ${escapeHtml(order.customerName)}</div>
+        <div><strong>الهاتف:</strong> ${escapeHtml(order.phoneNumber.replace(/^965/, ''))}</div>
+        <div><strong>النوع:</strong> ${order.orderType === 'delivery' ? 'توصيل' : 'استلام'} - ${getPaymentLabel(order.paymentMethod)}</div>
+        ${order.address ? `<div><strong>العنوان:</strong> ${escapeHtml(order.address)}</div>` : ''}
+        <hr>
+        ${order.items.map(item => `
+          <div style="display:flex; justify-content:space-between; gap:10px; margin:7px 0;">
+            <span>${escapeHtml(item.productName)} × ${item.quantity}</span>
+            <strong>${formatMoney(item.total)}</strong>
+          </div>
+        `).join('')}
+        <hr>
+        <div style="display:flex; justify-content:space-between;"><span>المنتجات</span><strong>${formatMoney(order.subTotal)}</strong></div>
+        ${order.deliveryPrice > 0 ? `<div style="display:flex; justify-content:space-between;"><span>التوصيل</span><strong>${formatMoney(order.deliveryPrice)}</strong></div>` : ''}
+        <div style="display:flex; justify-content:space-between; font-size:18px; margin-top:8px;"><span>الإجمالي</span><strong>${formatMoney(order.total)}</strong></div>
+      `;
+      showStep('doneStep');
+    }
+
+    function startNewInvoice() {
+      currentOrder = createEmptyOrder();
+      finalTranscript = '';
+      interimTranscript = '';
+      document.getElementById('manualInput').value = '';
+      document.getElementById('issuesBox').className = 'issue-box';
+      updateTranscript();
+      setStatus('جاهز. اضغط المايك أو اكتب الطلب.');
+      showStep('inputStep');
+    }
+
+    setupData();
+  </script>
+</body>
+</html>
