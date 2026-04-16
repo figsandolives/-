@@ -124,6 +124,33 @@
       animation: pulse 1.15s infinite;
     }
 
+    .product-stage-head {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .product-mic-btn {
+      width: 58px;
+      height: 58px;
+      font-size: 24px;
+      box-shadow: 0 12px 26px rgba(37, 99, 235, 0.22);
+      flex: 0 0 auto;
+    }
+
+    .product-live-box {
+      min-height: 132px;
+      border: 2px dashed #bfdbfe;
+      border-radius: 22px;
+      background: linear-gradient(180deg, #f8fbff, #eef6ff);
+      padding: 14px;
+      line-height: 1.9;
+      margin: 12px 0;
+      word-break: break-word;
+    }
+
     @keyframes pulse {
       0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.34), 0 18px 42px rgba(239, 68, 68, 0.25); }
       50% { box-shadow: 0 0 0 18px rgba(239, 68, 68, 0), 0 18px 42px rgba(239, 68, 68, 0.25); }
@@ -427,7 +454,6 @@
           <div class="guide-row" data-guide-key="phone"><span>رقم الهاتف:</span><span class="check">○</span></div>
           <div class="guide-row" data-guide-key="address"><span>العنوان: <small style="font-weight:700; color:#9a3412;">اذا كان الطلب استلام قل العنوان استلام</small></span><span class="check">○</span></div>
           <div class="guide-row" data-guide-key="deliveryPrice"><span>سعر التوصيل:</span><span class="check">○</span></div>
-          <div class="guide-row" data-guide-key="products"><span>المنتجات:</span><span class="check">○</span></div>
           <div class="guide-row" data-guide-key="paymentMethod"><span>طريقة الدفع:</span><span class="check">○</span></div>
         </div>
         <div id="status" class="status">جاهز. اضغط المايك أو اكتب الطلب.</div>
@@ -436,10 +462,10 @@
           <div id="transcript" class="transcript"><span class="muted">سيظهر الكلام هنا أثناء التسجيل...</span></div>
         </div>
         <div style="margin-top: 16px;">
-          <textarea id="manualInput" oninput="updateVoiceGuideProgress()" placeholder="اكتب اسم العميل، الهاتف، العنوان، المنتجات، طريقة الدفع وسعر التوصيل"></textarea>
+          <textarea id="manualInput" oninput="updateVoiceGuideProgress()" placeholder="اكتب اسم العميل، الهاتف، العنوان، سعر التوصيل وطريقة الدفع فقط"></textarea>
         </div>
         <div id="issuesBox" class="issue-box" style="margin-top: 12px;"></div>
-        <button class="primary-btn" style="margin-top: 14px;" onclick="submitCommand()">إرسال وتحليل الطلب</button>
+        <button class="primary-btn" style="margin-top: 14px;" onclick="submitCommand()">تحليل البيانات والانتقال للمنتجات</button>
       </div>
     </section>
 
@@ -447,13 +473,26 @@
       <div class="card" style="text-align:center; padding-block: 44px;">
         <div class="spinner"></div>
         <h2 style="margin: 10px 0 8px;">جاري تحليل البيانات...</h2>
-        <p class="hint">نقرأ العميل والعنوان والأصناف ونجهز صفحة مراجعة المنتجات.</p>
+        <p class="hint">نقرأ بيانات العميل والتوصيل ثم نفتح مرحلة المنتجات.</p>
       </div>
     </section>
 
     <section id="reviewStep" class="step">
       <div class="card">
-        <h2 style="margin: 0 0 6px;">ارجو مراجعة المنتجات</h2>
+        <div class="product-stage-head">
+          <button id="productMicBtn" class="mic-btn product-mic-btn" onclick="toggleMic()" type="button">🎙️</button>
+          <div>
+            <h2 style="margin: 0 0 4px;">المنتجات</h2>
+            <p class="hint" style="margin:0;">قل المنتج ثم اسكت لحظة قصيرة، وسيظهر مباشرة في المراجعة.</p>
+          </div>
+        </div>
+        <div id="productStatus" class="status">المايك جاهز لمرحلة المنتجات.</div>
+        <div class="product-live-box">
+          <div style="font-weight:900; margin-bottom:6px;">الكلام الحالي للمنتجات</div>
+          <div id="productTranscript"><span class="muted">قل اسم المنتج والكمية، مثال: كوكيز كيتو 2</span></div>
+        </div>
+        <div id="productIssuesBox" class="issue-box" style="margin-bottom: 12px;"></div>
+        <h3 style="margin: 14px 0 6px;">ارجو مراجعة المنتجات</h3>
         <p class="hint">يمكنك تعديل الكميات أو حذف صنف أو إضافة صنف قبل المتابعة.</p>
         <div id="reviewItems"></div>
         <div class="summary" style="margin-top: 14px;">
@@ -516,7 +555,7 @@
         </div>
 
         <button class="success-btn" style="margin-top: 16px;" onclick="saveInvoice()">حفظ وطباعة الفاتورة</button>
-        <button class="ghost-btn" style="width:100%; margin-top:10px;" onclick="showStep('reviewStep')">رجوع لمراجعة المنتجات</button>
+        <button class="ghost-btn" style="width:100%; margin-top:10px;" onclick="returnToProductReview()">رجوع لمراجعة المنتجات</button>
       </div>
     </section>
 
@@ -565,8 +604,18 @@
     let recognition = null;
     let isListening = false;
     let isAnalyzing = false;
+    let voiceStage = 'details';
     let finalTranscript = '';
     let interimTranscript = '';
+    let lastFinalTranscriptChunk = '';
+    let detailsAutoAdvanceTimer = null;
+    let productSpeechBuffer = '';
+    let productInterimTranscript = '';
+    let productSilenceTimer = null;
+    let lastProductTranscriptChunk = '';
+    let productUnmatchedSegments = [];
+    let productVoiceIndex = [];
+    const PRODUCT_SILENCE_MS = 750;
 
     function createEmptyOrder() {
       return {
@@ -585,6 +634,8 @@
     function setupData() {
       db.ref('products').on('value', snapshot => {
         allProducts = snapshot.val() ? Object.entries(snapshot.val()).map(([id, data]) => ({ id, ...data })) : [];
+        prepareVoiceProductsIndex();
+        applyProductSpeechGrammar();
         renderProductSearch();
       });
       db.ref('customers').on('value', snapshot => {
@@ -751,6 +802,8 @@
       sessionStorage.setItem('aiInvoiceCashierName', currentCashier.name || '');
       sessionStorage.setItem('aiInvoiceBranch', currentBranch);
       updateCashierBadges();
+      voiceStage = 'details';
+      updateMicButton();
       showStep('inputStep');
     }
 
@@ -797,6 +850,48 @@
         .trim();
     }
 
+    function getVoiceProductNameVariants(product) {
+      const names = [product.nameAr, product.nameEn, product.name, product.title]
+        .filter(Boolean)
+        .map(name => normalizeVoiceText(name))
+        .filter(Boolean);
+      return Array.from(new Set(names.flatMap(name => [
+        name,
+        name.replace(/\b(?:درزن|علبه|علبة|حبه|حبة)\b/g, '').replace(/\s+/g, ' ').trim()
+      ]).filter(Boolean)));
+    }
+
+    function prepareVoiceProductsIndex() {
+      productVoiceIndex = allProducts.map(product => {
+        const voiceNames = getVoiceProductNameVariants(product);
+        product.voiceNames = voiceNames;
+        product.voiceTokens = getVoiceProductTokens(voiceNames.join(' '));
+        product.voiceTokenCount = product.voiceTokens.length;
+        product.voiceSearchText = voiceNames.join(' ');
+        return { id: product.id, names: voiceNames };
+      });
+    }
+
+    function applyProductSpeechGrammar() {
+      if (!recognition || !productVoiceIndex.length) return;
+      const GrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+      if (!GrammarList) return;
+      const phrases = Array.from(new Set(
+        productVoiceIndex
+          .flatMap(item => item.names)
+          .map(name => name.replace(/[;=|]/g, ' ').replace(/\s+/g, ' ').trim())
+          .filter(name => name.length > 1)
+      )).slice(0, 350);
+      if (!phrases.length) return;
+      try {
+        const grammarList = new GrammarList();
+        grammarList.addFromString(`#JSGF V1.0; grammar products; public <product> = ${phrases.join(' | ')} ;`, 1);
+        recognition.grammars = grammarList;
+      } catch (error) {
+        console.warn('product grammar skipped', error);
+      }
+    }
+
     function formatMoney(value) {
       return `${(parseFloat(value) || 0).toFixed(3)} د.ك`;
     }
@@ -814,15 +909,27 @@
       status.className = `status ${isError ? 'error' : ''}`;
     }
 
+    function setProductStatus(message, isError = false) {
+      const status = document.getElementById('productStatus');
+      if (!status) return;
+      status.textContent = message;
+      status.className = `status ${isError ? 'error' : ''}`;
+    }
+
     function getRecognitionConstructor() {
       return window.SpeechRecognition || window.webkitSpeechRecognition;
     }
 
     function updateMicButton() {
-      const btn = document.getElementById('micBtn');
-      if (!btn) return;
-      btn.className = `mic-btn ${isListening ? 'listening' : ''}`;
-      btn.textContent = isListening ? '⏹' : '🎙️';
+      const buttons = [
+        { el: document.getElementById('micBtn'), cls: 'mic-btn' },
+        { el: document.getElementById('productMicBtn'), cls: 'mic-btn product-mic-btn' }
+      ];
+      buttons.forEach(({ el, cls }) => {
+        if (!el) return;
+        el.className = `${cls} ${isListening ? 'listening' : ''}`;
+        el.textContent = isListening ? '⏹' : '🎙️';
+      });
     }
 
     function updateTranscript() {
@@ -841,7 +948,7 @@
 
     function getCurrentCommandText() {
       const manualText = document.getElementById('manualInput')?.value || '';
-      return `${finalTranscript} ${interimTranscript} ${manualText}`.trim();
+      return prepareVoiceCommandText(`${finalTranscript} ${interimTranscript} ${manualText}`.trim());
     }
 
     function hasVoiceProductsKeyword(text) {
@@ -849,16 +956,41 @@
       return /(?:^|\s)(?:و?المنتجات|و?منتجات|و?الاصناف|و?اصناف)(?:\s|$)/.test(normalized);
     }
 
-    function updateVoiceGuideProgress() {
-      const text = getCurrentCommandText();
-      const checks = {
+    function hasVoicePaymentMethod(text) {
+      return /(طريقة\s*الدفع|الدفع|كاش|نقد|كي\s*نت|كي-نت|اونلاين|أونلاين|رابط|لينك|online|knet)/i.test(normalizeVoiceText(text));
+    }
+
+    function getDetailsChecks(text) {
+      const address = extractVoiceAddress(text);
+      const orderType = extractVoiceOrderType(text, address);
+      const isPickup = orderType === 'pickup' || isVoicePickupAddress(text);
+      return {
         customerName: Boolean(extractVoiceCustomerName(text)),
         phone: Boolean(extractVoicePhone(text)),
-        address: Boolean(extractVoiceAddress(text)) || isVoicePickupAddress(text),
-        deliveryPrice: extractVoiceDeliveryPrice(text) > 0,
-        products: hasVoiceProductsKeyword(text),
-        paymentMethod: /(طريقة\s*الدفع|الدفع|كاش|كي\s*نت|كي-نت|اونلاين|أونلاين|رابط|لينك|online|knet)/i.test(normalizeVoiceText(text))
+        address: Boolean(address) || isPickup,
+        deliveryPrice: isPickup || extractVoiceDeliveryPrice(text) > 0,
+        paymentMethod: hasVoicePaymentMethod(text)
       };
+    }
+
+    function areDetailsChecksComplete(checks) {
+      return Object.values(checks).every(Boolean);
+    }
+
+    function scheduleDetailsAutoAdvance(checks) {
+      clearTimeout(detailsAutoAdvanceTimer);
+      if (
+        voiceStage !== 'details' ||
+        isAnalyzing ||
+        !document.getElementById('inputStep')?.classList.contains('active') ||
+        !areDetailsChecksComplete(checks)
+      ) return;
+      detailsAutoAdvanceTimer = setTimeout(() => analyzeCommand(true), 700);
+    }
+
+    function updateVoiceGuideProgress() {
+      const text = getCurrentCommandText();
+      const checks = getDetailsChecks(text);
 
       Object.entries(checks).forEach(([key, done]) => {
         const row = document.querySelector(`[data-guide-key="${key}"]`);
@@ -867,12 +999,14 @@
         const check = row.querySelector('.check');
         if (check) check.textContent = done ? '✓' : '○';
       });
+      scheduleDetailsAutoAdvance(checks);
     }
 
     function startListening() {
       const Recognition = getRecognitionConstructor();
       if (!Recognition) {
-        setStatus('المتصفح لا يدعم التعرف على الصوت. استخدم Chrome أو اكتب الطلب.', true);
+        if (voiceStage === 'products') setProductStatus('المتصفح لا يدعم التعرف على الصوت. يمكنك البحث وإضافة المنتجات يدويًا.', true);
+        else setStatus('المتصفح لا يدعم التعرف على الصوت. استخدم Chrome أو اكتب الطلب.', true);
         return;
       }
       if (!recognition) {
@@ -880,18 +1014,35 @@
         recognition.lang = 'ar-KW';
         recognition.continuous = true;
         recognition.interimResults = true;
+        recognition.maxAlternatives = 3;
         recognition.onresult = event => {
+          if (voiceStage === 'products') {
+            handleProductRecognitionResult(event);
+            return;
+          }
           let interim = '';
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = convertSpokenNumbersInText(event.results[i][0].transcript);
-            if (event.results[i].isFinal) finalTranscript += `${transcript} `;
-            else interim += transcript;
+            const result = event.results[i];
+            const voiceResult = getBestVoiceTranscript(result);
+            if (!voiceResult.text) continue;
+            if (result.isFinal) {
+              if (!shouldAcceptVoiceTranscript(voiceResult.text, voiceResult.confidence)) continue;
+              const normalizedChunk = normalizeVoiceText(voiceResult.text);
+              if (normalizedChunk && normalizedChunk !== lastFinalTranscriptChunk) {
+                finalTranscript += `${voiceResult.text} `;
+                lastFinalTranscriptChunk = normalizedChunk;
+              }
+            } else {
+              interim += `${voiceResult.text} `;
+            }
           }
-          interimTranscript = interim;
+          interimTranscript = interim.trim();
           updateTranscript();
         };
         recognition.onerror = event => {
-          setStatus(event.error === 'not-allowed' ? 'لم يتم السماح باستخدام المايك.' : `حدث خطأ في المايك: ${event.error}`, true);
+          const message = event.error === 'not-allowed' ? 'لم يتم السماح باستخدام المايك.' : `حدث خطأ في المايك: ${event.error}`;
+          if (voiceStage === 'products') setProductStatus(message, true);
+          else setStatus(message, true);
         };
         recognition.onend = () => {
           if (isListening && !isAnalyzing) {
@@ -900,11 +1051,13 @@
             }, 250);
           }
         };
+        applyProductSpeechGrammar();
       }
       try {
         isListening = true;
         recognition.start();
-        setStatus('المايك مفتوح، تكلم الآن...');
+        if (voiceStage === 'products') setProductStatus('مايك المنتجات مفتوح، قل المنتج ثم اسكت لحظة.');
+        else setStatus('المايك مفتوح، تكلم الآن...');
       } catch (error) {
         console.warn('start skipped', error);
       }
@@ -917,17 +1070,107 @@
       if (recognition) {
         try { recognition.stop(); } catch (error) { console.warn('stop skipped', error); }
       }
-      if (shouldAnalyze) analyzeCommand();
+      if (voiceStage === 'products') {
+        commitProductSpeechBuffer();
+        setProductStatus('تم إيقاف مايك المنتجات. يمكنك تشغيله مرة أخرى أو المتابعة.');
+        return;
+      }
+      if (shouldAnalyze) analyzeCommand(false);
     }
 
     function toggleMic() {
-      if (isListening) stopListening(true);
+      if (isListening) stopListening(voiceStage === 'details');
       else startListening();
     }
 
     function submitCommand() {
-      if (isListening) stopListening(false);
-      analyzeCommand();
+      if (voiceStage === 'products') {
+        commitProductSpeechBuffer();
+        return;
+      }
+      analyzeCommand(false);
+    }
+
+    function renderProductTranscript() {
+      const el = document.getElementById('productTranscript');
+      if (!el) return;
+      const finalText = productSpeechBuffer.trim();
+      const interimText = productInterimTranscript.trim();
+      if (!finalText && !interimText) {
+        el.innerHTML = '<span class="muted">قل اسم المنتج والكمية، مثال: كوكيز كيتو 2</span>';
+        return;
+      }
+      el.innerHTML = `${escapeHtml(finalText)} ${interimText ? `<span class="muted">${escapeHtml(interimText)}</span>` : ''}`;
+    }
+
+    function renderProductIssues() {
+      const box = document.getElementById('productIssuesBox');
+      if (!box) return;
+      if (!productUnmatchedSegments.length) {
+        box.className = 'issue-box';
+        box.innerHTML = '';
+        return;
+      }
+      box.className = 'issue-box show';
+      box.innerHTML = `<strong>لم أتعرف على:</strong><br>${productUnmatchedSegments.map(item => `- ${escapeHtml(item)}`).join('<br>')}`;
+    }
+
+    function scheduleProductCommit() {
+      clearTimeout(productSilenceTimer);
+      productSilenceTimer = setTimeout(() => commitProductSpeechBuffer(), PRODUCT_SILENCE_MS);
+    }
+
+    function handleProductRecognitionResult(event) {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const voiceResult = getBestVoiceTranscript(result);
+        if (!voiceResult.text) continue;
+        if (isDetailsLikeProductTranscript(voiceResult.text)) continue;
+        if (result.isFinal) {
+          if (!shouldAcceptVoiceTranscript(voiceResult.text, voiceResult.confidence)) continue;
+          const normalizedChunk = normalizeVoiceText(voiceResult.text);
+          if (normalizedChunk && normalizedChunk !== lastProductTranscriptChunk) {
+            productSpeechBuffer = `${productSpeechBuffer} ${voiceResult.text}`.trim();
+            lastProductTranscriptChunk = normalizedChunk;
+            scheduleProductCommit();
+          }
+        } else {
+          interim += `${voiceResult.text} `;
+        }
+      }
+      productInterimTranscript = interim.trim();
+      renderProductTranscript();
+    }
+
+    function isDetailsLikeProductTranscript(text) {
+      const normalized = normalizeVoiceText(text || '');
+      return /(?:^|\s)(?:فاتوره|باسم|رقم|هاتف|تلفون|العنوان|عنوان|سعر\s*التوصيل|طريقة\s*الدفع)(?:\s|$)/.test(normalized);
+    }
+
+    function commitProductSpeechBuffer() {
+      clearTimeout(productSilenceTimer);
+      const text = prepareVoiceCommandText(productSpeechBuffer.trim());
+      productSpeechBuffer = '';
+      productInterimTranscript = '';
+      lastProductTranscriptChunk = '';
+      if (!text) {
+        renderProductTranscript();
+        return;
+      }
+      const result = extractVoiceProductsFromProductStage(text);
+      result.matches.forEach(item => addProductToOrder(item.product, item.quantity));
+      if (result.unmatchedSegments.length) {
+        productUnmatchedSegments.push(...result.unmatchedSegments);
+        setProductStatus('هناك منتج لم أتعرف عليه، يمكنك إضافته من البحث.', true);
+      } else if (result.matches.length) {
+        setProductStatus(`تمت إضافة ${result.matches.length === 1 ? 'منتج' : 'منتجات'} للمراجعة.`);
+      } else {
+        setProductStatus('لم أسمع اسم منتج واضح. حاول مرة أخرى.', true);
+      }
+      renderReview();
+      renderProductIssues();
+      renderProductTranscript();
     }
 
     function getVoicePhoneSection(text) {
@@ -936,6 +1179,34 @@
       const stopLabel = '(?=\\s+(?:عنوان|العنوان|عنوانه|عنوانها|منطقه|منطقة|سعر(?:\\s*(?:التوصيل|توصيل))?|المنتجات|والمنتجات|الاصناف|الأصناف|طريقة\\s*الدفع|الدفع|كاش|كي\\s*نت|اونلاين|أونلاين|رابط|لينك)|$)';
       const match = clean.match(new RegExp(`${phoneLabel}\\s*[:：\\-]?\\s*([\\s\\S]+?)${stopLabel}`, 'i'));
       return match ? match[1].trim() : '';
+    }
+
+    function scoreVoiceTranscriptAlternative(text, confidence = 0) {
+      const normalized = normalizeVoiceText(text);
+      let score = Number(confidence) || 0;
+      if (/(فاتوره|باسم|رقم|هاتف|تلفون|عنوان|العنوان|سعر|منتجات|اصناف|الدفع|كاش|رابط|لينك|كي\s*نت|اونلاين|استلام|توصيل)/.test(normalized)) score += 0.35;
+      if (/\d/.test(normalized)) score += 0.15;
+      return score;
+    }
+
+    function getBestVoiceTranscript(result) {
+      const alternatives = Array.from({ length: result?.length || 0 }, (_, index) => result[index]).filter(Boolean);
+      const ranked = alternatives
+        .map(item => {
+          const text = prepareVoiceCommandText(item.transcript || '');
+          const confidence = Number(item.confidence) || 0;
+          return { text, confidence, score: scoreVoiceTranscriptAlternative(text, confidence) };
+        })
+        .filter(item => item.text)
+        .sort((a, b) => b.score - a.score || b.text.length - a.text.length);
+      return ranked[0] || { text: '', confidence: 0 };
+    }
+
+    function shouldAcceptVoiceTranscript(text, confidence = 0) {
+      const normalized = normalizeVoiceText(text);
+      if (!normalized) return false;
+      if (confidence > 0 && confidence < 0.18 && normalized.length <= 4 && !/\d/.test(normalized)) return false;
+      return true;
     }
 
     function getSpokenDigit(token) {
@@ -1055,6 +1326,12 @@
       }
 
       return compactSpokenPhoneInText(value, convertedTokens.join(' '));
+    }
+
+    function prepareVoiceCommandText(value) {
+      return convertSpokenNumbersInText(value || '')
+        .replace(/\s+/g, ' ')
+        .trim();
     }
 
     function compactSpokenPhoneInText(originalText, convertedText) {
@@ -1194,20 +1471,36 @@
       return '(?:(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)\\s*)?(?:التوصيل|توصيل|الدليفري|دليفري)';
     }
 
+    function getVoiceMoneyAmountPattern() {
+      return '(?:[0-9٠-٩۰-۹]+(?:[\\.,][0-9٠-٩۰-۹]+)?|دينارين|دينار|واحده|واحد|ثنتين|اثنين|ثنين|نص|نصف|ربع|ثلاثه|ثلاث|اربعه|اربع|خمسه|خمس|سته|ست|سبعه|سبع|ثمانيه|ثماني|تسعه|تسع|عشره|عشر)';
+    }
+
     function stripVoiceDeliveryPriceFromText(value) {
       const deliveryStop = getVoiceDeliveryStopPattern();
-      return (value || '')
-        .replace(new RegExp(`\\s*${deliveryStop}\\s*(?:هو|هي|ب|بـ|بسعر|=|:)?\\s*(?:[0-9٠-٩۰-۹]+(?:[\\.,][0-9٠-٩۰-۹]+)?|دينارين|دينار|واحده|واحد|ثنتين|اثنين|ثنين|نص|نصف|ربع|ثلاثه|اربعه|خمسه|سته|سبعه|ثمانيه|تسعه|عشره).*$`, 'i'), '')
-        .replace(/\s*(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)(?:\s*(?:التوصيل|توصيل|الدليفري|دليفري))?\s*$/i, '')
+      const amountPattern = getVoiceMoneyAmountPattern();
+      return convertSpokenNumbersInText(value || '')
+        .replace(/\s+/g, ' ')
+        .replace(new RegExp(`\\s*${deliveryStop}\\s*(?:هو|هي|ب|بـ|بسعر|=|:)?\\s*${amountPattern}.*$`, 'i'), '')
+        .replace(new RegExp(`\\s+${amountPattern}\\s*(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)(?:\\s*(?:التوصيل|توصيل|الدليفري|دليفري))?.*$`, 'i'), '')
+        .replace(/\s+(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)(?:\s*(?:التوصيل|توصيل|الدليفري|دليفري))?.*$/i, '')
+        .trim();
+    }
+
+    function cleanVoiceAddressText(value) {
+      return stripVoiceDeliveryPriceFromText(value || '')
+        .replace(/\s+(?:والمنتجات|المنتجات|منتجات|والاصناف|والأصناف|الاصناف|الأصناف|اصناف|طريقة الدفع|الدفع|كاش|كي\s*نت|اونلاين|أونلاين|رابط|لينك).*$/i, '')
+        .replace(/\s+/g, ' ')
         .trim();
     }
 
     function getVoiceAddressSection(text) {
-      const clean = (text || '').replace(/\s+/g, ' ').trim();
+      const clean = prepareVoiceCommandText(text || '').replace(/\s+/g, ' ').trim();
       const deliveryStop = getVoiceDeliveryStopPattern();
-      const addressStop = new RegExp(`(?:عنوان(?:ه|ها)?|العنوان|منطقه|منطقة|التوصيل الي|توصيل الي)\\s*[:：\\-]?\\s+(.+?)(?=\\s+(?:والمنتجات|المنتجات|يريد|يبي|يبى|وطلب|الدفع|طريقة الدفع|كاش|كي|اونلاين|أونلاين|سعر|رسوم|قيمه|قيمة|اجره|اجرة|${deliveryStop})|$)`, 'i');
+      const amountPattern = getVoiceMoneyAmountPattern();
+      const priceWordPattern = `${amountPattern}\\s*(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)(?=\\s+(?:والمنتجات|المنتجات|منتجات|والاصناف|والأصناف|الاصناف|الأصناف|اصناف|طريقة\\s*الدفع|الدفع|كاش|كي\\s*نت|اونلاين|أونلاين|رابط|لينك)|$)`;
+      const addressStop = new RegExp(`(?:عنوان(?:ه|ها)?|العنوان|منطقه|منطقة|التوصيل الي|توصيل الي)\\s*[:：\\-]?\\s+(.+?)(?=\\s+(?:${priceWordPattern}|والمنتجات|المنتجات|منتجات|والاصناف|والأصناف|الاصناف|الأصناف|اصناف|يريد|يبي|يبى|وطلب|الدفع|طريقة الدفع|كاش|كي|اونلاين|أونلاين|رابط|لينك|سعر|رسوم|قيمه|قيمة|اجره|اجرة|${deliveryStop})|$)`, 'i');
       const addressMatch = clean.match(addressStop);
-      return stripVoiceDeliveryPriceFromText(addressMatch ? addressMatch[1].trim() : '');
+      return cleanVoiceAddressText(addressMatch ? addressMatch[1].trim() : '');
     }
 
     function isVoicePickupAddress(text) {
@@ -1223,10 +1516,10 @@
     }
 
     function extractVoiceAddress(text) {
-      const clean = (text || '').replace(/\s+/g, ' ').trim();
+      const clean = prepareVoiceCommandText(text || '').replace(/\s+/g, ' ').trim();
       if (isVoicePickupAddress(clean)) return null;
       const areaFromKnownList = areas.find(area => normalizeVoiceText(clean).includes(normalizeVoiceText(area)));
-      const rawDetails = getVoiceAddressSection(clean);
+      const rawDetails = cleanVoiceAddressText(getVoiceAddressSection(clean));
       const area = areaFromKnownList || rawDetails.split(' ')[0] || '';
       const areaWordCount = normalizeVoiceText(area).split(' ').filter(Boolean).length;
       let details = rawDetails;
@@ -1236,12 +1529,13 @@
         if (normalizedDetails === normalizedArea) details = '';
         else if (normalizedDetails.startsWith(`${normalizedArea} `)) details = details.split(/\s+/).slice(areaWordCount).join(' ').trim();
       }
+      details = cleanVoiceAddressText(details);
       if (!area && !details) return null;
       return { area, details };
     }
 
     function parseVoiceMoneyAmount(value) {
-      const normalized = normalizeVoiceText(value);
+      const normalized = normalizeVoiceText(convertSpokenNumbersInText(value));
       const digitMatch = normalized.match(/\d+(?:\.\d+)?/);
       if (digitMatch) return parseFloat(digitMatch[0]);
       const wordValues = [
@@ -1255,11 +1549,12 @@
     }
 
     function extractVoiceDeliveryPrice(text) {
-      const normalized = normalizeVoiceText(text);
-      const amountPattern = '([0-9]+(?:\\.[0-9]+)?|دينارين|دينار|واحده|واحد|ثنتين|اثنين|ثنين|نص|نصف|ربع|ثلاثه|اربعه|خمسه|سته|سبعه|ثمانيه|تسعه|عشره)';
-      const match = normalized.match(new RegExp(`(?:سعر|رسوم|قيمه|اجره)\\s*(?:التوصيل|توصيل|الدليفري|دليفري)\\s*(?:هو|هي|ب|بسعر)?\\s*${amountPattern}`))
-        || normalized.match(new RegExp(`(?:التوصيل|توصيل|الدليفري|دليفري)\\s*(?:ب|بسعر|سعره|قيمته)?\\s*${amountPattern}`))
-        || normalized.match(new RegExp(`${amountPattern}\\s*(?:دك|دينار|دنانير)?\\s*(?:توصيل|دليفري)`));
+      const normalized = normalizeVoiceText(prepareVoiceCommandText(text));
+      const amountPattern = `(${getVoiceMoneyAmountPattern()})`;
+      const match = normalized.match(new RegExp(`(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)\\s*(?:التوصيل|توصيل|الدليفري|دليفري)?\\s*(?:هو|هي|ب|بـ|بسعر|=|:)?\\s*${amountPattern}`))
+        || normalized.match(new RegExp(`(?:التوصيل|توصيل|الدليفري|دليفري)\\s*(?:ب|بـ|بسعر|سعره|قيمته)?\\s*${amountPattern}`))
+        || normalized.match(new RegExp(`${amountPattern}\\s*(?:دك|دينار|دنانير)?\\s*(?:سعر\\s*)?(?:التوصيل|توصيل|دليفري)`))
+        || normalized.match(new RegExp(`${amountPattern}\\s*(?:دك|دينار|دنانير)?\\s*(?:سعر|رسوم|قيمه|قيمة|اجره|اجرة)(?=\\s+(?:والمنتجات|المنتجات|منتجات|والاصناف|والأصناف|الاصناف|الأصناف|اصناف|طريقة\\s*الدفع|الدفع|كاش|كي\\s*نت|اونلاين|أونلاين|رابط|لينك)|$)`));
       if (!match) return 0;
       const deliveryPrice = parseVoiceMoneyAmount(match[1]);
       return Number.isFinite(deliveryPrice) && deliveryPrice >= 0 ? parseFloat(deliveryPrice.toFixed(3)) : 0;
@@ -1267,8 +1562,8 @@
 
     function extractVoicePaymentMethod(text) {
       const normalized = normalizeVoiceText(text);
-      if (/(كي\s*نت|كي-نت|knet|كي نت)/i.test(normalized)) return 'knet';
       if (/(اونلاين|online|رابط|لينك)/i.test(normalized)) return 'online';
+      if (/(كي\s*نت|كي-نت|knet|كي نت)/i.test(normalized)) return 'knet';
       if (/(كاش|نقد)/i.test(normalized)) return 'cash';
       return 'cash';
     }
@@ -1338,16 +1633,20 @@
       const rawProductsPhrase = extractVoiceProductsPhrase(text);
       if (!rawProductsPhrase) return [];
 
-      const productsPhrase = rawProductsPhrase
+      return splitVoiceProductSegmentsFromPhrase(rawProductsPhrase);
+    }
+
+    function splitVoiceProductSegmentsFromPhrase(phrase) {
+      const productsPhrase = prepareVoiceCommandText(phrase || '')
         .replace(/(\d+(?:\.\d+)?)\s+(?=(?:درزن|كوكيز|فطاير|فطائر|كيك|بيتزا|مشروب|عصير|سلطه|سلطة|صحن|طبق|علبه|علبة|ساندويتش|[ء-ي]{3,}\s+[ء-ي]{3,}))/g, '$1\n')
         .replace(/(^|\s)(واحد|وحده|حبه|حبتين|اثنين|ثنين|ثنتين|ثلاثه|اربعه|خمسه|سته|سبعه|ثمانيه|تسعه|عشره)\s+(?=(?:درزن|كوكيز|فطاير|فطائر|كيك|بيتزا|مشروب|عصير|سلطه|سلطة|صحن|طبق|علبه|علبة|ساندويتش|[ء-ي]{3,}\s+[ء-ي]{3,}))/g, '$1$2\n');
 
       return productsPhrase
-        .split(/\n+|،|,|\s+و\s+/)
-        .map(segment => segment.replace(/^(?:المنتجات|الاصناف|الأصناف|يريد|يبي|يبى|طلب|وطلب|ابي|ابغى)\s+/i, '').trim())
+        .split(/\n+|،|,|\s+ثم\s+|\s+بعدها\s+|\s+و\s+/)
+        .map(segment => segment.replace(/^(?:المنتجات|منتجات|الاصناف|الأصناف|اصناف|يريد|يبي|يبى|طلب|وطلب|ابي|ابغى)\s+/i, '').trim())
         .filter(segment => {
           const normalized = normalizeVoiceText(segment);
-          return normalized.length > 1 && !/^(الدفع|طريقة الدفع|كاش|كي نت|اونلاين|رابط)$/.test(normalized);
+          return normalized.length > 1 && !/^(الدفع|طريقة الدفع|كاش|كي نت|اونلاين|رابط)$/.test(normalized) && !isDetailsLikeProductTranscript(segment);
         });
     }
 
@@ -1371,7 +1670,7 @@
     function scoreVoiceProductMatch(segment, product) {
       const normalizedSegment = normalizeVoiceText(segment);
       if (normalizedSegment.length < 2) return 0;
-      const productNames = [product.nameAr, product.nameEn].filter(Boolean).map(normalizeVoiceText).filter(Boolean);
+      const productNames = product.voiceNames?.length ? product.voiceNames : [product.nameAr, product.nameEn].filter(Boolean).map(normalizeVoiceText).filter(Boolean);
       const segmentTokens = getVoiceProductTokens(segment);
       let bestScore = 0;
       productNames.forEach(name => {
@@ -1391,11 +1690,10 @@
       return bestScore;
     }
 
-    function extractVoiceProducts(text) {
+    function matchVoiceProductSegments(segments) {
       const matches = [];
       const matchedIds = new Set();
       const unmatchedSegments = [];
-      const segments = splitVoiceProductSegments(text);
 
       segments.forEach(segment => {
         const rankedMatches = allProducts
@@ -1403,7 +1701,7 @@
           .map(product => ({
             product,
             score: scoreVoiceProductMatch(segment, product),
-            tokenCount: getVoiceProductTokens(`${product.nameAr || ''} ${product.nameEn || ''}`).length,
+            tokenCount: product.voiceTokenCount || getVoiceProductTokens(`${product.nameAr || ''} ${product.nameEn || ''}`).length,
             nameLength: String(product.nameAr || product.nameEn || '').length
           }))
           .sort((a, b) => b.score - a.score || b.tokenCount - a.tokenCount || b.nameLength - a.nameLength);
@@ -1417,6 +1715,14 @@
       });
 
       return { matches, unmatchedSegments };
+    }
+
+    function extractVoiceProducts(text) {
+      return matchVoiceProductSegments(splitVoiceProductSegments(text));
+    }
+
+    function extractVoiceProductsFromProductStage(text) {
+      return matchVoiceProductSegments(splitVoiceProductSegmentsFromPhrase(text));
     }
 
     function addProductToOrder(product, quantity = 1) {
@@ -1447,7 +1753,8 @@
       }) || null;
     }
 
-    async function analyzeCommand() {
+    async function analyzeCommand(autoAdvance = false) {
+      if (voiceStage !== 'details') return;
       if (isAnalyzing) return;
       if (allProducts.length === 0) {
         setStatus('جاري تحميل المنتجات. حاول بعد ثواني قليلة.', true);
@@ -1455,8 +1762,9 @@
       }
 
       isAnalyzing = true;
+      clearTimeout(detailsAutoAdvanceTimer);
       const manualText = document.getElementById('manualInput')?.value || '';
-      const fullText = `${finalTranscript} ${interimTranscript} ${manualText}`.trim();
+      const fullText = prepareVoiceCommandText(`${finalTranscript} ${interimTranscript} ${manualText}`.trim());
       interimTranscript = '';
       updateTranscript();
 
@@ -1467,25 +1775,22 @@
       }
 
       showStep('analysisStep');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, autoAdvance ? 450 : 750));
 
       const phone = extractVoicePhone(fullText);
-      const productsResult = extractVoiceProducts(fullText);
       const address = extractVoiceAddress(fullText);
       const deliveryPrice = extractVoiceDeliveryPrice(fullText);
       const orderType = extractVoiceOrderType(fullText, address);
       const existingCustomer = findCustomerByVoicePhone(phone);
       const customerName = extractVoiceCustomerName(fullText) || existingCustomer?.name || '';
+      const isPickup = orderType === 'pickup';
 
       const issues = [];
       if (!phone) issues.push('رقم الهاتف غير واضح.');
       if (!customerName && !existingCustomer) issues.push('اسم العميل غير واضح.');
-      if (!hasVoiceProductsKeyword(fullText)) {
-        issues.push('قل "المنتجات:" قبل ذكر الأصناف.');
-      } else if (productsResult.matches.length === 0) {
-        issues.push('لم أتعرف على أي صنف.');
-      }
-      if (productsResult.unmatchedSegments.length > 0) issues.push(`أصناف غير واضحة: ${productsResult.unmatchedSegments.join('، ')}`);
+      if (!address && !isPickup) issues.push('العنوان غير واضح.');
+      if (!isPickup && deliveryPrice <= 0) issues.push('سعر التوصيل غير واضح.');
+      if (!hasVoicePaymentMethod(fullText)) issues.push('طريقة الدفع غير واضحة.');
 
       if (issues.length) {
         renderIssues(issues);
@@ -1500,11 +1805,29 @@
       currentOrder.deliveryPrice = orderType === 'pickup' ? 0 : deliveryPrice;
       currentOrder.orderType = orderType;
       currentOrder.paymentMethod = extractVoicePaymentMethod(fullText);
-      productsResult.matches.forEach(item => addProductToOrder(item.product, item.quantity));
 
-      renderReview();
-      showStep('reviewStep');
+      beginProductStage(true);
       isAnalyzing = false;
+    }
+
+    function beginProductStage(keepMicOpen = true) {
+      voiceStage = 'products';
+      productSpeechBuffer = '';
+      productInterimTranscript = '';
+      lastProductTranscriptChunk = '';
+      productUnmatchedSegments = [];
+      clearTimeout(productSilenceTimer);
+      renderReview();
+      renderProductIssues();
+      renderProductTranscript();
+      showStep('reviewStep');
+      setProductStatus('دخلنا مرحلة المنتجات. قل المنتج ثم اسكت لحظة قصيرة.');
+      if (keepMicOpen) {
+        if (!isListening) startListening();
+        else updateMicButton();
+      } else {
+        updateMicButton();
+      }
     }
 
     function renderIssues(issues) {
@@ -1607,9 +1930,13 @@
       addProductToOrder(product, 1);
       document.getElementById('productSearch').value = '';
       renderReview();
+      setProductStatus('تمت إضافة المنتج من البحث.');
     }
 
     function showCheckoutStep() {
+      if (voiceStage === 'products') {
+        commitProductSpeechBuffer();
+      }
       if (!currentCashier) {
         alert('سجل دخول الكاشير أولًا.');
         showStep('cashierLoginStep');
@@ -1619,6 +1946,7 @@
         alert('لا توجد منتجات في الفاتورة.');
         return;
       }
+      if (voiceStage === 'products' && isListening) stopListening(false);
       document.getElementById('customerName').value = currentOrder.customer?.name || '';
       const phone = convertToEnglishNumbers(currentOrder.customer?.phone || '').replace(/^965/, '');
       document.getElementById('customerPhone').value = phone;
@@ -1634,7 +1962,19 @@
       document.getElementById('addressDetails').value = currentOrder.selectedAddress?.details || '';
       toggleManualArea();
       updateTotals();
+      voiceStage = 'checkout';
+      updateMicButton();
       showStep('checkoutStep');
+    }
+
+    function returnToProductReview() {
+      voiceStage = 'products';
+      renderReview();
+      renderProductTranscript();
+      renderProductIssues();
+      showStep('reviewStep');
+      setProductStatus(isListening ? 'مايك المنتجات مفتوح.' : 'يمكنك تشغيل مايك المنتجات أو التعديل يدويًا.');
+      updateMicButton();
     }
 
     function setOrderType(type) {
@@ -1817,11 +2157,22 @@
 
     function startNewInvoice() {
       currentOrder = createEmptyOrder();
+      voiceStage = 'details';
       finalTranscript = '';
       interimTranscript = '';
+      lastFinalTranscriptChunk = '';
+      productSpeechBuffer = '';
+      productInterimTranscript = '';
+      lastProductTranscriptChunk = '';
+      productUnmatchedSegments = [];
+      clearTimeout(detailsAutoAdvanceTimer);
+      clearTimeout(productSilenceTimer);
       document.getElementById('manualInput').value = '';
       document.getElementById('issuesBox').className = 'issue-box';
+      renderProductIssues();
+      renderProductTranscript();
       updateTranscript();
+      updateMicButton();
       setStatus('جاهز. اضغط المايك أو اكتب الطلب.');
       showStep('inputStep');
     }
