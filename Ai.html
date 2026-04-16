@@ -140,17 +140,6 @@
       flex: 0 0 auto;
     }
 
-    .product-live-box {
-      min-height: 132px;
-      border: 2px dashed #bfdbfe;
-      border-radius: 22px;
-      background: linear-gradient(180deg, #f8fbff, #eef6ff);
-      padding: 14px;
-      line-height: 1.9;
-      margin: 12px 0;
-      word-break: break-word;
-    }
-
     @keyframes pulse {
       0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.34), 0 18px 42px rgba(239, 68, 68, 0.25); }
       50% { box-shadow: 0 0 0 18px rgba(239, 68, 68, 0), 0 18px 42px rgba(239, 68, 68, 0.25); }
@@ -286,43 +275,53 @@
 
     .item-card {
       border: 1px solid var(--line);
-      border-radius: 22px;
-      padding: 14px;
+      border-radius: 18px;
+      padding: 10px;
       background: #fff;
-      margin: 10px 0;
+      margin: 0;
       box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
     }
 
-    .item-head {
-      display: flex;
-      justify-content: space-between;
+    #reviewItems {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
-      align-items: flex-start;
-      margin-bottom: 10px;
+      align-items: start;
     }
 
-    .item-title { font-weight: 900; line-height: 1.55; }
-    .item-sub { color: var(--muted); font-size: 12px; margin-top: 3px; }
+    #reviewItems .hint { grid-column: 1 / -1; }
+
+    .item-head {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .item-title { font-weight: 900; line-height: 1.45; font-size: 13px; }
+    .item-sub { color: var(--muted); font-size: 11px; margin-top: 3px; line-height: 1.35; }
 
     .qty-row {
       display: grid;
-      grid-template-columns: 42px 1fr 42px auto;
-      gap: 8px;
+      grid-template-columns: 34px 1fr 34px;
+      gap: 6px;
       align-items: center;
     }
 
     .qty-btn {
-      height: 42px;
-      border-radius: 14px;
+      height: 36px;
+      border-radius: 12px;
       background: #e0edff;
       color: #1d4ed8;
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 900;
     }
 
-    .qty-input { text-align: center; padding: 10px; border-radius: 14px; font-weight: 900; }
+    .qty-input { text-align: center; padding: 8px; border-radius: 12px; font-weight: 900; }
 
     .price { color: var(--blue); font-weight: 900; white-space: nowrap; }
+    .item-card .price { grid-column: 1 / -1; text-align: center; margin-top: 2px; }
+    .item-card .small-btn { width: 100%; padding: 8px 10px; border-radius: 12px; font-size: 12px; }
+    .item-note { min-height: 58px; margin-top: 8px; padding: 10px; font-size: 12px; border-radius: 14px; }
 
     .search-results {
       max-height: 260px;
@@ -482,18 +481,10 @@
         <div class="product-stage-head">
           <button id="productMicBtn" class="mic-btn product-mic-btn" onclick="toggleMic()" type="button">🎙️</button>
           <div>
-            <h2 style="margin: 0 0 4px;">المنتجات</h2>
-            <p class="hint" style="margin:0;">قل المنتج ثم اسكت لحظة قصيرة، وسيظهر مباشرة في المراجعة.</p>
+            <h2 style="margin: 0;">المنتجات</h2>
           </div>
         </div>
-        <div id="productStatus" class="status">المايك جاهز لمرحلة المنتجات.</div>
-        <div class="product-live-box">
-          <div style="font-weight:900; margin-bottom:6px;">الكلام الحالي للمنتجات</div>
-          <div id="productTranscript"><span class="muted">قل اسم المنتج والكمية، مثال: كوكيز كيتو 2</span></div>
-        </div>
-        <div id="productIssuesBox" class="issue-box" style="margin-bottom: 12px;"></div>
-        <h3 style="margin: 14px 0 6px;">ارجو مراجعة المنتجات</h3>
-        <p class="hint">يمكنك تعديل الكميات أو حذف صنف أو إضافة صنف قبل المتابعة.</p>
+        <h3 style="margin: 14px 0 12px;">ارجو مراجعة المنتجات</h3>
         <div id="reviewItems"></div>
         <div class="summary" style="margin-top: 14px;">
           <div class="summary-line"><span>مجموع المنتجات</span><span id="reviewSubTotal">0.000 د.ك</span></div>
@@ -850,6 +841,18 @@
         .trim();
     }
 
+    function normalizeVoiceProductInput(value) {
+      return normalizeVoiceText(value)
+        .replace(/(^|\s)لبن\s+كثير\s+(?:ماس|ماعز)(?=\s|$)/g, '$1لبن كفير ماعز')
+        .replace(/(^|\s)كثير\s+(?:ماس|ماعز)(?=\s|$)/g, '$1كفير ماعز')
+        .replace(/(^|\s)كثير(?=\s+(?:ماس|ماعز)(?:\s|$))/g, '$1كفير')
+        .replace(/(^|\s)ماس(?=\s|$)/g, '$1ماعز')
+        .replace(/(^|\s)خبز\s+محشي\s+خبيز(?=\s|$)/g, '$1خبز محشي مشكل')
+        .replace(/(^|\s)محشي\s+خبيز(?=\s|$)/g, '$1محشي مشكل')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
     function getVoiceProductNameVariants(product) {
       const names = [product.nameAr, product.nameEn, product.name, product.title]
         .filter(Boolean)
@@ -1072,7 +1075,6 @@
       }
       if (voiceStage === 'products') {
         commitProductSpeechBuffer();
-        setProductStatus('تم إيقاف مايك المنتجات. يمكنك تشغيله مرة أخرى أو المتابعة.');
         return;
       }
       if (shouldAnalyze) analyzeCommand(false);
@@ -1186,6 +1188,12 @@
       let score = Number(confidence) || 0;
       if (/(فاتوره|باسم|رقم|هاتف|تلفون|عنوان|العنوان|سعر|منتجات|اصناف|الدفع|كاش|رابط|لينك|كي\s*نت|اونلاين|استلام|توصيل)/.test(normalized)) score += 0.35;
       if (/\d/.test(normalized)) score += 0.15;
+      if (voiceStage === 'products' && allProducts.length) {
+        const corrected = normalizeVoiceProductInput(text);
+        const bestProductScore = allProducts.reduce((best, product) => Math.max(best, scoreVoiceProductMatch(text, product)), 0);
+        score += Math.min(bestProductScore, 1.25) * 0.45;
+        if (corrected && corrected !== normalized) score += 0.18;
+      }
       return score;
     }
 
@@ -1599,8 +1607,8 @@
       'اريد', 'ابي', 'ابغى', 'يبي', 'يبى', 'طلب', 'اطلب', 'والمنتجات', 'المنتجات', 'درزن'
     ]);
 
-    function getVoiceProductTokens(value) {
-      return normalizeVoiceText(value)
+    function getVoiceProductTokens(value, correctInput = false) {
+      return (correctInput ? normalizeVoiceProductInput(value) : normalizeVoiceText(value))
         .split(' ')
         .map(token => token.trim())
         .filter(token => token.length > 1 && !/^\d+(?:\.\d+)?$/.test(token) && !voiceProductStopWords.has(token));
@@ -1668,15 +1676,15 @@
     }
 
     function scoreVoiceProductMatch(segment, product) {
-      const normalizedSegment = normalizeVoiceText(segment);
+      const normalizedSegment = normalizeVoiceProductInput(segment);
       if (normalizedSegment.length < 2) return 0;
       const productNames = product.voiceNames?.length ? product.voiceNames : [product.nameAr, product.nameEn].filter(Boolean).map(normalizeVoiceText).filter(Boolean);
-      const segmentTokens = getVoiceProductTokens(segment);
+      const segmentTokens = getVoiceProductTokens(segment, true);
       let bestScore = 0;
       productNames.forEach(name => {
         if (!name) return;
         if (normalizedSegment.includes(name) || name.includes(normalizedSegment)) {
-          bestScore = Math.max(bestScore, 1);
+          bestScore = Math.max(bestScore, name.includes(normalizedSegment) ? 1.25 : 1.18);
           return;
         }
         const nameWords = getVoiceProductTokens(name);
@@ -1685,7 +1693,8 @@
         const productCoverage = nameWords.length ? productHits / nameWords.length : 0;
         const segmentCoverage = segmentTokens.length ? segmentHits / segmentTokens.length : 0;
         const segmentScore = segmentTokens.length >= 2 ? segmentCoverage * 0.95 : segmentCoverage * 0.45;
-        bestScore = Math.max(bestScore, Math.max(productCoverage, segmentScore));
+        const fullSegmentBonus = segmentTokens.length >= 2 && segmentCoverage === 1 ? 0.18 : 0;
+        bestScore = Math.max(bestScore, Math.max(productCoverage, segmentScore) + fullSegmentBonus);
       });
       return bestScore;
     }
@@ -1858,7 +1867,7 @@
               <button class="qty-btn" onclick="changeQty(${index}, 1)">+</button>
               <div class="price">${formatMoney(item.total)}</div>
             </div>
-            <textarea style="min-height:70px; margin-top:10px;" placeholder="ملاحظة للصنف" oninput="setNote(${index}, this.value)">${escapeHtml(item.notes || '')}</textarea>
+            <textarea class="item-note" placeholder="ملاحظة" oninput="setNote(${index}, this.value)">${escapeHtml(item.notes || '')}</textarea>
           </div>
         `).join('');
       }
