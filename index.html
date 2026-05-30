@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>تطبيق البصمة</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2310b981'/%3E%3Cpath d='M20 32c0-6.6 5.4-12 12-12s12 5.4 12 12' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M24 38c0-4.4 3.6-8 8-8s8 3.6 8 8' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M32 40v8' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f7fb;--panel:#ffffff;--panel2:#eef2f7;--text:#0f172a;--text2:#64748b;
+  --accent:#2563eb;--green:#10b981;--red:#ef4444;--border:rgba(15,23,42,.1);
+  --shadow:0 18px 45px rgba(15,23,42,.12);--radius:14px;
+}
+body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.screen{min-height:100vh;padding:22px;display:flex;align-items:center;justify-content:center}
+.hidden{display:none!important}
+.login-card,.app-shell{width:100%;max-width:430px;background:var(--panel);border:1px solid var(--border);border-radius:24px;box-shadow:var(--shadow);padding:24px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.brand-icon{width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#1d4ed8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:27px;font-weight:900}
+.brand h1{font-size:23px;font-weight:900}
+.brand p{font-size:13px;color:var(--text2);margin-top:2px}
+.label{font-size:13px;color:var(--text2);margin-bottom:8px;display:block}
+.input{width:100%;height:52px;border:1px solid var(--border);background:var(--panel2);border-radius:12px;padding:0 14px;font-family:Arial,sans-serif;font-weight:900;font-size:22px;letter-spacing:2px;direction:ltr;text-align:center;color:var(--text);outline:none}
+.input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(37,99,235,.14)}
+.btn{width:100%;height:52px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-family:'Tajawal',sans-serif;font-size:17px;font-weight:900;margin-top:14px;cursor:pointer}
+.error{min-height:22px;margin-top:10px;color:var(--red);font-size:13px;text-align:center}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.hello{font-size:21px;font-weight:900}
+.sub{font-size:13px;color:var(--text2);margin-top:2px}
+.logout{border:1px solid var(--border);background:var(--panel2);color:var(--text);border-radius:10px;padding:8px 12px;font-family:'Tajawal',sans-serif;font-weight:700}
+.schedule-box{background:var(--panel2);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:18px}
+.schedule-title{font-size:15px;font-weight:900;margin-bottom:12px}
+.schedule-cards{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.task-card{min-width:190px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:13px;box-shadow:0 8px 18px rgba(15,23,42,.08)}
+.task-branch{font-size:15px;font-weight:900;color:var(--accent);margin-bottom:6px}
+.task-time{font-size:14px;font-weight:800;margin-bottom:5px}
+.task-text{font-size:12px;color:var(--text2);line-height:1.6}
+.empty{font-size:13px;color:var(--text2);padding:12px;text-align:center}
+.fingerprint-panel{text-align:center;background:#fff;border:1px solid var(--border);border-radius:20px;padding:20px}
+.fingerprint-button{width:180px;height:180px;border-radius:50%;border:0;margin:10px auto 12px;background:radial-gradient(circle at 50% 35%,#cbd5e1,#64748b 58%,#475569);box-shadow:0 14px 34px rgba(100,116,139,.22);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;color:#fff;font-weight:900;font-size:16px;font-family:'Tajawal',sans-serif;touch-action:none;transition:background .25s,box-shadow .25s,transform .15s,opacity .2s}
+.fingerprint-lines{position:absolute;inset:32px;border-radius:50%;opacity:.8;background:repeating-radial-gradient(circle at center,transparent 0 8px,rgba(255,255,255,.5) 9px 10px)}
+.scan-line{position:absolute;left:26px;right:26px;height:3px;background:#bbf7d0;box-shadow:0 0 18px #bbf7d0;top:20px;opacity:0}
+.fingerprint-button.scanning .scan-line{opacity:1;animation:scan 1.35s ease-in-out infinite}
+.fingerprint-button.scanning{background:radial-gradient(circle at 50% 35%,#34d399,#10b981 58%,#047857)}
+.fingerprint-button.ready{background:radial-gradient(circle at 50% 35%,#6ee7b7,#10b981 58%,#047857);box-shadow:0 18px 42px rgba(16,185,129,.35);cursor:pointer}
+.fingerprint-button.locked{background:radial-gradient(circle at 50% 35%,#cbd5e1,#64748b 58%,#475569);box-shadow:0 12px 30px rgba(100,116,139,.18);cursor:not-allowed;opacity:.72}
+.fingerprint-button.holding{transform:scale(.97)}
+.fingerprint-button.holding .scan-line{opacity:1;animation:scan 1s ease-in-out infinite}
+.fingerprint-button.checked-in{background:radial-gradient(circle at 50% 35%,#6ee7b7,#10b981 58%,#047857);box-shadow:0 18px 42px rgba(16,185,129,.35)}
+.fingerprint-label{position:relative;z-index:2;max-width:90px;line-height:1.4}
+.status{font-size:14px;color:var(--text2);min-height:24px;font-weight:700}
+.status.ok{color:var(--green)}
+.status.err{color:var(--red)}
+.exit-panel{display:none;margin-top:14px;padding:14px;background:var(--panel2);border:1px solid var(--border);border-radius:14px;text-align:right}
+.exit-panel.show{display:block}
+.exit-title{font-size:14px;font-weight:900;margin-bottom:10px}
+.exit-actions{display:flex;gap:8px;flex-wrap:wrap}
+.mini-btn{border:0;border-radius:10px;padding:10px 14px;font-family:'Tajawal',sans-serif;font-weight:900;cursor:pointer;background:var(--accent);color:#fff}
+.mini-btn.secondary{background:#fff;color:var(--text);border:1px solid var(--border)}
+.permission-input{width:100%;margin:10px 0;font-family:'Tajawal',sans-serif}
+@keyframes scan{0%{top:24px}50%{top:153px}100%{top:24px}}
+@media (max-width:420px){
+  .screen{padding:14px}
+  .login-card,.app-shell{padding:18px;border-radius:20px}
+  .fingerprint-button{width:164px;height:164px}
+}
+</style>
+</head>
+<body>
+<section class="screen" id="loginScreen">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-icon">HR</div>
+      <div>
+        <h1>تطبيق البصمة</h1>
+        <p>أدخل رمزك الخاص لتسجيل الحضور والانصراف</p>
+      </div>
+    </div>
+    <label class="label" for="codeInput">رمز الدخول</label>
+    <input class="input" id="codeInput" inputmode="numeric" autocomplete="one-time-code" oninput="normalizeCode(this)" onkeydown="if(event.key==='Enter') login()">
+    <button class="btn" onclick="login()">دخول</button>
+    <div class="error" id="loginError"></div>
+  </div>
+</section>
+
+<section class="screen hidden" id="appScreen">
+  <div class="app-shell">
+    <div class="top">
+      <div>
+        <div class="hello" id="helloName">مرحباً</div>
+        <div class="sub" id="todayText"></div>
+      </div>
+      <button class="logout" onclick="logout()">خروج</button>
+    </div>
+
+    <div class="schedule-box">
+      <div class="schedule-title">دوامك اليوم</div>
+      <div class="schedule-cards" id="scheduleCards"></div>
+    </div>
+
+    <div class="fingerprint-panel">
+      <button class="fingerprint-button locked" id="fingerprintButton" type="button" disabled onpointerdown="beginFingerprintHold(event)" onpointerup="cancelFingerprintHold(event)" onpointerleave="cancelFingerprintHold(event)" onpointercancel="cancelFingerprintHold(event)" onclick="event.preventDefault()">
+        <span class="fingerprint-lines"></span>
+        <span class="scan-line"></span>
+        <span class="fingerprint-label">ضع اصبعك هنا</span>
+      </button>
+      <div class="status" id="punchStatus">جاهز لتسجيل البصمة</div>
+      <div class="exit-panel" id="exitPanel">
+        <div class="exit-title" id="exitQuestion">هل لديك إذن خروج؟</div>
+        <div class="exit-actions" id="exitQuestionActions">
+          <button class="mini-btn" onclick="showExitUpload()">نعم</button>
+          <button class="mini-btn secondary" onclick="hideExitPanel()">لا</button>
+        </div>
+        <div id="exitUpload" class="hidden">
+          <div class="exit-title">ارجو ارفاق صورة من اذن الخروج</div>
+          <input class="permission-input" id="exitPermissionFile" type="file" accept="image/*" capture="environment">
+          <button class="mini-btn" onclick="attachExitPermission()">إرفاق</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyC5aYsmT1qUJd5D8GVh5WlIlLeiT35t8WQ",
+  authDomain: "hrpro-f80e7.firebaseapp.com",
+  databaseURL: "https://hrpro-f80e7-default-rtdb.firebaseio.com",
+  projectId: "hrpro-f80e7",
+  storageBucket: "hrpro-f80e7.firebasestorage.app",
+  messagingSenderId: "999134303706",
+  appId: "1:999134303706:web:a9f0b7bacb6ba796f55ce3",
+  measurementId: "G-JFC4SPKXDK"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+let hrData = {employees:{},employers:{},fingerprintCodes:{},schedules:{},fingerprintPlaces:{}};
+let punches = [];
+let currentEmployee = null;
+let scanning = false;
+let pendingExitPermissionImage = '';
+let zoneWatchId = null;
+let zoneAllowed = false;
+let zoneStatusMessage = 'جاري التحقق من نطاق البصمة...';
+let currentZoneMatch = null;
+let lastKnownLocation = null;
+let holdTimer = null;
+
+const dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
+const branchNames = {surra:'فرع السرة',abulhasania:'فرع أبو الحصانية',yarmouk:'فرع اليرموك',fixed:'دوام ثابت'};
+const GPS_STRICT_MAX_ACCURACY = 15;
+const GPS_SAMPLE_TIMEOUT_MS = 10000;
+const GPS_MIN_SAMPLES = 4;
+
+db.ref('hrData').on('value', snap=>{
+  hrData = snap.val() || {employees:{},employers:{},fingerprintCodes:{},schedules:{},fingerprintPlaces:{}};
+  if(currentEmployee){
+    currentEmployee = hrData.employees?.[currentEmployee.id] || currentEmployee;
+    renderApp();
+    if(lastKnownLocation) setZoneAvailability(resolveAllowedFingerprintPlace(lastKnownLocation));
+  }
+});
+
+db.ref('fingerprintPunches').on('value', snap=>{
+  punches = Object.entries(snap.val() || {}).map(([id,value])=>({id,...value}));
+});
+
+function normalizeDigits(value){
+  return String(value ?? '')
+    .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+}
+
+function normalizeCode(input){
+  input.value = normalizeDigits(input.value).replace(/[^0-9]/g,'');
+}
+
+function formatDateInput(date=new Date()){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+
+function formatTimeInput(date=new Date()){
+  return `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+}
+
+function formatTimeValue(time){
+  const [hourPart,minutePart='0'] = String(time).split(':');
+  const hour = parseInt(hourPart,10);
+  const minute = parseInt(minutePart,10);
+  const suffix = hour < 12 ? 'ص' : 'م';
+  const displayHour = hour % 12 || 12;
+  return minute ? `${displayHour}:${String(minute).padStart(2,'0')}${suffix}` : `${displayHour}${suffix}`;
+}
+
+function timeToMin(time){
+  const [h,m] = String(time || '00:00').split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function login(){
+  const code = document.getElementById('codeInput').value.trim();
+  const match = Object.entries(hrData.fingerprintCodes || {}).find(([,savedCode])=>String(savedCode) === code);
+  if(!match){
+    document.getElementById('loginError').textContent = 'رمز الدخول غير صحيح';
+    return;
+  }
+  currentEmployee = hrData.employees?.[match[0]];
+  if(!currentEmployee){
+    document.getElementById('loginError').textContent = 'لم يتم العثور على بيانات الموظف';
+    return;
+  }
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('appScreen').classList.remove('hidden');
+  renderApp();
+  startZoneWatch();
+}
+
+function logout(){
+  stopZoneWatch();
+  cancelFingerprintHold();
+  currentEmployee = null;
+  document.getElementById('codeInput').value = '';
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('appScreen').classList.add('hidden');
+}
+
+function getTodayScheduleItems(){
+  if(!currentEmployee) return [];
+  const key = dayKeys[new Date().getDay()];
+  const schedule = hrData.schedules?.[key] || {};
+  const scheduledItems = Object.entries(schedule.zones || {}).flatMap(([zone,items])=>
+    (items || [])
+      .filter(item=>item.empId === currentEmployee.id)
+      .map(item=>({...item,zone}))
+  ).sort((a,b)=>timeToMin(a.from)-timeToMin(b.from));
+  if(scheduledItems.length) return scheduledItems;
+  if(currentEmployee.schedType === 'fixed' && Array.isArray(currentEmployee.segments)){
+    return currentEmployee.segments.map((item,index)=>({
+      ...item,
+      zone:'fixed',
+      fixedIndex:index,
+      empId:currentEmployee.id,
+      empName:currentEmployee.name,
+      employerId:item.employerId || currentEmployee.employerId || '',
+      employerName:item.employerName || currentEmployee.employer || ''
+    })).sort((a,b)=>timeToMin(a.from)-timeToMin(b.from));
+  }
+  return [];
+}
+
+function getTodayPunches(){
+  const date = formatDateInput(new Date());
+  return punches
+    .filter(punch=>punch.empId === currentEmployee?.id && punch.date === date)
+    .sort((a,b)=>String(a.iso || '').localeCompare(String(b.iso || '')));
+}
+
+function isCheckedIn(){
+  return getTodayPunches().length % 2 === 1;
+}
+
+function getScheduledEndMinutes(){
+  const items = getTodayScheduleItems();
+  if(!items.length) return null;
+  return Math.max(...items.map(item=>timeToMin(item.to)));
+}
+
+function canExitNormally(){
+  const endMinutes = getScheduledEndMinutes();
+  if(endMinutes === null) return false;
+  const now = new Date();
+  const nowMinutes = now.getHours()*60 + now.getMinutes();
+  return nowMinutes >= endMinutes - 15;
+}
+
+function getCurrentDutyItem(){
+  const items = getTodayScheduleItems();
+  if(!items.length) return null;
+  const now = new Date();
+  const nowMinutes = now.getHours()*60 + now.getMinutes();
+  return items.find(item=>nowMinutes >= timeToMin(item.from) && nowMinutes <= timeToMin(item.to))
+    || items.find(item=>nowMinutes < timeToMin(item.from))
+    || items[items.length-1];
+}
+
+function getCurrentEmployer(dutyItem=getCurrentDutyItem()){
+  const employers = Object.values(hrData.employers || {});
+  return employers.find(employer=>employer.id === dutyItem?.employerId || employer.name === dutyItem?.employerName)
+    || employers.find(employer=>employer.id === currentEmployee?.employerId || employer.name === currentEmployee?.employer);
+}
+
+function getFingerprintPlacesForEmployer(employer, dutyItem){
+  const employerId = employer?.id || dutyItem?.employerId || currentEmployee?.employerId || '';
+  const employerName = employer?.name || dutyItem?.employerName || currentEmployee?.employer || '';
+  return Object.values(hrData.fingerprintPlaces || {}).filter(place=>{
+    const ids = Array.isArray(place.employerIds) ? place.employerIds : [];
+    const names = Array.isArray(place.employerNames) ? place.employerNames : [];
+    return ids.includes(employerId) || names.includes(employerName) || place.employerId === employerId;
+  });
+}
+
+function distanceMeters(a,b){
+  const earth = 6371000;
+  const toRad = value=>value * Math.PI / 180;
+  const dLat = toRad(b.lat-a.lat);
+  const dLng = toRad(b.lng-a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+  return earth * 2 * Math.atan2(Math.sqrt(h),Math.sqrt(1-h));
+}
+
+function getLocationAccuracyMeters(value){
+  const accuracy = Number(value);
+  return Number.isFinite(accuracy) && accuracy > 0 ? accuracy : 0;
+}
+
+function getFingerprintLocationTolerance(current, place){
+  const currentAccuracy = getLocationAccuracyMeters(current?.accuracy);
+  const savedAccuracy = getLocationAccuracyMeters(place?.location?.accuracy);
+  return Math.min(18, Math.max(6, currentAccuracy, savedAccuracy));
+}
+
+function normalizeGeoPosition(pos){
+  return {
+    lat:pos.coords.latitude,
+    lng:pos.coords.longitude,
+    accuracy:pos.coords.accuracy,
+    altitude:pos.coords.altitude,
+    altitudeAccuracy:pos.coords.altitudeAccuracy,
+    capturedAt:new Date(pos.timestamp || Date.now()).toISOString()
+  };
+}
+
+function combineLocationSamples(samples){
+  const usable = samples
+    .filter(sample=>Number.isFinite(Number(sample.lat)) && Number.isFinite(Number(sample.lng)))
+    .sort((a,b)=>getLocationAccuracyMeters(a.accuracy)-getLocationAccuracyMeters(b.accuracy))
+    .slice(0,6);
+  if(!usable.length) return null;
+  const weightFor = sample=>1 / Math.max(1, getLocationAccuracyMeters(sample.accuracy)) ** 2;
+  const totalWeight = usable.reduce((sum,sample)=>sum+weightFor(sample),0);
+  const weighted = usable.reduce((acc,sample)=>{
+    const weight = weightFor(sample);
+    acc.lat += sample.lat * weight;
+    acc.lng += sample.lng * weight;
+    if(sample.altitude != null && Number.isFinite(Number(sample.altitude))){
+      acc.altitude += Number(sample.altitude) * weight;
+      acc.altitudeWeight += weight;
+    }
+    return acc;
+  },{lat:0,lng:0,altitude:0,altitudeWeight:0});
+  const best = usable[0];
+  return {
+    lat:weighted.lat / totalWeight,
+    lng:weighted.lng / totalWeight,
+    accuracy:getLocationAccuracyMeters(best.accuracy),
+    altitude:weighted.altitudeWeight ? weighted.altitude / weighted.altitudeWeight : best.altitude,
+    altitudeAccuracy:best.altitudeAccuracy,
+    sampleCount:samples.length,
+    bestAccuracy:getLocationAccuracyMeters(best.accuracy),
+    capturedAt:new Date().toISOString()
+  };
+}
+
+function acquirePreciseLocation({timeoutMs=GPS_SAMPLE_TIMEOUT_MS,minSamples=GPS_MIN_SAMPLES,targetAccuracy=GPS_STRICT_MAX_ACCURACY}={}){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){
+      reject(new Error('الموقع غير مدعوم في هذا الجهاز'));
+      return;
+    }
+    const samples = [];
+    let settled = false;
+    let watchId = null;
+    const finish = (callback,value)=>{
+      if(settled) return;
+      settled = true;
+      if(watchId !== null) navigator.geolocation.clearWatch(watchId);
+      clearTimeout(timer);
+      callback(value);
+    };
+    const timer = setTimeout(()=>{
+      const combined = combineLocationSamples(samples);
+      if(combined) finish(resolve, combined);
+      else finish(reject, new Error('تعذر التقاط موقع دقيق'));
+    },timeoutMs);
+    watchId = navigator.geolocation.watchPosition(pos=>{
+      samples.push(normalizeGeoPosition(pos));
+      const combined = combineLocationSamples(samples);
+      if(combined && samples.length >= minSamples && combined.accuracy <= targetAccuracy){
+        finish(resolve, combined);
+      }
+    },()=>{
+      if(samples.length){
+        const combined = combineLocationSamples(samples);
+        finish(resolve, combined);
+      } else {
+        finish(reject, new Error('اسمح للتطبيق بالوصول إلى الموقع'));
+      }
+    },{
+      enableHighAccuracy:true,
+      timeout:timeoutMs,
+      maximumAge:0
+    });
+  });
+}
+
+function resolveAllowedFingerprintPlace(current){
+  const currentAccuracy = getLocationAccuracyMeters(current?.accuracy);
+  if(!currentAccuracy || currentAccuracy > GPS_STRICT_MAX_ACCURACY){
+    return {allowed:false,message:`دقة GPS ضعيفة الآن (${Math.round(currentAccuracy || 0)} متر). اقترب من مكان مفتوح أو انتظر ثواني`,current};
+  }
+  const items = getTodayScheduleItems();
+  if(!items.length) return {allowed:false,message:'لا يوجد دوام مسجل لك اليوم'};
+  const dutyItem = getCurrentDutyItem();
+  const employer = getCurrentEmployer(dutyItem);
+  const places = getFingerprintPlacesForEmployer(employer, dutyItem);
+  if(!places.length) return {allowed:false,message:'لم يتم ربط مكان بصمة لهذه الجهة'};
+  const nearest = places
+    .map(place=>{
+      const center = {lat:Number(place.location?.lat),lng:Number(place.location?.lng)};
+      const radius = Number(place.radiusMeters) || 20;
+      const distance = Number.isFinite(center.lat) && Number.isFinite(center.lng) ? distanceMeters(current,center) : Infinity;
+      const tolerance = getFingerprintLocationTolerance(current, place);
+      const effectiveRadius = radius + tolerance;
+      return {place,radius,distance,tolerance,effectiveRadius,outsideBy:Math.max(0,distance-effectiveRadius)};
+    })
+    .sort((a,b)=>a.distance-b.distance)[0];
+  if(!nearest || !Number.isFinite(nearest.distance)){
+    return {allowed:false,message:'مكان البصمة غير مكتمل'};
+  }
+  if(nearest.distance > nearest.effectiveRadius){
+    return {allowed:false,message:`أنت خارج حدود البصمة بفارق ${Math.round(nearest.outsideBy)} متر`,nearest,dutyItem,employer,current};
+  }
+  return {allowed:true,message:'داخل نطاق البصمة، اضغط مطولاً لمدة ثانيتين',nearest,dutyItem,employer,current};
+}
+
+function setZoneAvailability(result){
+  zoneAllowed = !!result?.allowed;
+  zoneStatusMessage = result?.message || 'جاري التحقق من نطاق البصمة...';
+  currentZoneMatch = result || null;
+  renderPunchButtonState();
+}
+
+function startZoneWatch(){
+  stopZoneWatch();
+  zoneAllowed = false;
+  currentZoneMatch = null;
+  zoneStatusMessage = 'جاري التحقق من نطاق البصمة...';
+  renderPunchButtonState();
+  if(!navigator.geolocation){
+    setZoneAvailability({allowed:false,message:'الموقع غير مدعوم في هذا الجهاز'});
+    return;
+  }
+  zoneWatchId = navigator.geolocation.watchPosition(pos=>{
+    const current = normalizeGeoPosition(pos);
+    lastKnownLocation = current;
+    setZoneAvailability(resolveAllowedFingerprintPlace(current));
+  },()=>{
+    setZoneAvailability({allowed:false,message:'اسمح للتطبيق بالوصول إلى الموقع'});
+  },{
+    enableHighAccuracy:true,
+    timeout:15000,
+    maximumAge:2500
+  });
+}
+
+function stopZoneWatch(){
+  if(zoneWatchId !== null && navigator.geolocation){
+    navigator.geolocation.clearWatch(zoneWatchId);
+  }
+  zoneWatchId = null;
+  zoneAllowed = false;
+  currentZoneMatch = null;
+  lastKnownLocation = null;
+}
+
+async function ensureInsideEmployerZone(){
+  const current = await acquirePreciseLocation();
+  const result = resolveAllowedFingerprintPlace(current);
+  setZoneAvailability(result);
+  if(!result.allowed) throw new Error(result.message || 'أنت خارج نطاق البصمة');
+  const {nearest, dutyItem, employer} = result;
+  return {
+    lat:current.lat,
+    lng:current.lng,
+    accuracy:current.accuracy,
+    altitude:current.altitude,
+    altitudeAccuracy:current.altitudeAccuracy,
+    distance:Math.round(nearest.distance),
+    radiusMeters:nearest.radius,
+    toleranceMeters:Math.round(nearest.tolerance),
+    effectiveRadiusMeters:Math.round(nearest.effectiveRadius),
+    fingerprintPlaceId:nearest.place.id || '',
+    employerId:employer?.id || dutyItem?.employerId || currentEmployee?.employerId || '',
+    employerName:employer?.name || dutyItem?.employerName || currentEmployee?.employer || '',
+    dutyFrom:dutyItem?.from || '',
+    dutyTo:dutyItem?.to || '',
+    zone:dutyItem?.zone || ''
+  };
+}
+
+function renderApp(){
+  const firstName = String(currentEmployee?.name || '').split(/\s+/)[0] || 'موظفنا';
+  document.getElementById('helloName').textContent = `مرحباً ${firstName}`;
+  document.getElementById('todayText').textContent = new Date().toLocaleDateString('ar-KW',{weekday:'long',day:'numeric',month:'numeric'});
+  const items = getTodayScheduleItems();
+  document.getElementById('scheduleCards').innerHTML = items.length ? items.map(item=>`
+    <div class="task-card">
+      <div class="task-branch">${branchNames[item.zone] || item.zone}</div>
+      <div class="task-text" style="font-weight:800;color:var(--text)">${item.employerName || currentEmployee.employer || ''}</div>
+      <div class="task-time">${formatTimeValue(item.from)} إلى ${formatTimeValue(item.to)}</div>
+      <div class="task-text">${(item.tasks || []).join(' + ') || 'بدون مهام محددة'}</div>
+    </div>
+  `).join('') : '<div class="empty">لا يوجد دوام مسجل لك اليوم</div>';
+  renderPunchButtonState();
+}
+
+async function startPunch(){
+  if(scanning || !currentEmployee) return;
+  if(!zoneAllowed){
+    document.getElementById('punchStatus').className = 'status err';
+    document.getElementById('punchStatus').textContent = zoneStatusMessage || 'أنت خارج نطاق البصمة';
+    renderPunchButtonState();
+    return;
+  }
+  const checkedIn = isCheckedIn();
+  let type = checkedIn ? 'out' : 'in';
+  if(checkedIn && !canExitNormally() && !pendingExitPermissionImage){
+    showExitPanel();
+    return;
+  }
+  scanning = true;
+  const button = document.getElementById('fingerprintButton');
+  const status = document.getElementById('punchStatus');
+  button.classList.add('scanning');
+  button.classList.remove('checked-in');
+  status.className = 'status';
+  status.textContent = 'جاري التحقق من الموقع...';
+  const now = new Date();
+  const date = formatDateInput(now);
+  const time = formatTimeInput(now);
+  try{
+    const location = await ensureInsideEmployerZone();
+    status.textContent = 'جاري تحليل البصمة...';
+    await new Promise(resolve=>setTimeout(resolve,250));
+    const payload = {
+      empId:currentEmployee.id,
+      empName:currentEmployee.name,
+      date,
+      time,
+      iso:now.toISOString(),
+      type,
+      location,
+      createdAt:firebase.database.ServerValue.TIMESTAMP
+    };
+    if(type === 'out' && pendingExitPermissionImage){
+      payload.exitPermission = true;
+      payload.exitPermissionImage = pendingExitPermissionImage;
+    }
+    const ref = await db.ref('fingerprintPunches').push(payload);
+    punches.push({id:ref.key,...payload});
+    pendingExitPermissionImage = '';
+    hideExitPanel();
+    status.className = 'status ok';
+    status.textContent = type === 'in' ? 'تم تسجيل بصمة الدخول' : 'تم تسجيل بصمة الخروج';
+    speakThanks();
+  } catch(err){
+    console.error(err);
+    status.className = 'status err';
+    status.textContent = err.message || 'تعذر تسجيل البصمة';
+  } finally {
+    button.classList.remove('scanning');
+    scanning = false;
+    renderPunchButtonState();
+  }
+}
+
+function renderPunchButtonState(){
+  const button = document.getElementById('fingerprintButton');
+  if(!button) return;
+  const label = button.querySelector('.fingerprint-label');
+  const checkedIn = isCheckedIn();
+  button.disabled = scanning || !zoneAllowed;
+  button.classList.toggle('locked', !zoneAllowed);
+  button.classList.toggle('ready', zoneAllowed && !scanning);
+  button.classList.toggle('checked-in', checkedIn && zoneAllowed);
+  if(!zoneAllowed){
+    label.textContent = 'خارج النطاق';
+    const status = document.getElementById('punchStatus');
+    status.className = 'status err';
+    status.textContent = zoneStatusMessage;
+    return;
+  }
+  if(checkedIn){
+    label.textContent = pendingExitPermissionImage ? 'بصمة خروج بإذن' : 'تم تسجيل الدخول';
+    document.getElementById('punchStatus').className = 'status ok';
+    document.getElementById('punchStatus').textContent = canExitNormally() ? 'يمكنك تسجيل بصمة الخروج الآن' : 'لا يمكن تسجيل الخروج إلا بإذن أو قبل نهاية الدوام ب 15 دقيقة';
+  } else {
+    label.textContent = 'ضع اصبعك هنا';
+    document.getElementById('punchStatus').className = 'status ok';
+    document.getElementById('punchStatus').textContent = zoneStatusMessage;
+  }
+}
+
+function beginFingerprintHold(event){
+  event.preventDefault();
+  if(scanning || !currentEmployee) return;
+  if(!zoneAllowed){
+    document.getElementById('punchStatus').className = 'status err';
+    document.getElementById('punchStatus').textContent = zoneStatusMessage || 'أنت خارج نطاق البصمة';
+    return;
+  }
+  const checkedIn = isCheckedIn();
+  if(checkedIn && !canExitNormally() && !pendingExitPermissionImage){
+    showExitPanel();
+    return;
+  }
+  const button = document.getElementById('fingerprintButton');
+  const label = button.querySelector('.fingerprint-label');
+  button.setPointerCapture?.(event.pointerId);
+  clearTimeout(holdTimer);
+  button.classList.add('holding');
+  label.textContent = 'استمر ثانيتين';
+  document.getElementById('punchStatus').className = 'status ok';
+  document.getElementById('punchStatus').textContent = 'استمر بالضغط لتسجيل البصمة';
+  holdTimer = setTimeout(()=>{
+    holdTimer = null;
+    button.classList.remove('holding');
+    startPunch();
+  },2000);
+}
+
+function cancelFingerprintHold(){
+  if(!holdTimer) return;
+  clearTimeout(holdTimer);
+  holdTimer = null;
+  const button = document.getElementById('fingerprintButton');
+  button?.classList.remove('holding');
+  renderPunchButtonState();
+}
+
+function showExitPanel(){
+  document.getElementById('exitPanel').classList.add('show');
+  document.getElementById('exitQuestionActions').classList.remove('hidden');
+  document.getElementById('exitUpload').classList.add('hidden');
+}
+
+function hideExitPanel(){
+  document.getElementById('exitPanel').classList.remove('show');
+}
+
+function showExitUpload(){
+  document.getElementById('exitQuestionActions').classList.add('hidden');
+  document.getElementById('exitUpload').classList.remove('hidden');
+}
+
+function attachExitPermission(){
+  const file = document.getElementById('exitPermissionFile').files[0];
+  if(!file){
+    document.getElementById('punchStatus').className = 'status err';
+    document.getElementById('punchStatus').textContent = 'ارفق صورة إذن الخروج أولاً';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e=>{
+    pendingExitPermissionImage = e.target.result;
+    hideExitPanel();
+    document.getElementById('punchStatus').className = 'status ok';
+    document.getElementById('punchStatus').textContent = 'تم إرفاق إذن الخروج، اضغط بصمة خروج';
+    renderPunchButtonState();
+  };
+  reader.readAsDataURL(file);
+}
+
+function speakThanks(){
+  const firstName = String(currentEmployee?.name || '').split(/\s+/)[0] || '';
+  if(!('speechSynthesis' in window)) return;
+  const utterance = new SpeechSynthesisUtterance(`شكراً لك يا ${firstName}`);
+  utterance.lang = 'ar-KW';
+  utterance.rate = .95;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utterance);
+}
+</script>
+</body>
+</html>
