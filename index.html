@@ -149,6 +149,9 @@ let zoneAllowed = false;
 let zoneStatusMessage = 'جاري التحقق من نطاق البصمة...';
 let currentZoneMatch = null;
 let lastKnownLocation = null;
+let lastAllowedZoneResult = null;
+let lastAllowedZoneAt = 0;
+let weakGpsReadingCount = 0;
 let holdTimer = null;
 
 const dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
@@ -156,6 +159,8 @@ const branchNames = {surra:'فرع السرة',abulhasania:'فرع أبو الح
 const GPS_STRICT_MAX_ACCURACY = 15;
 const GPS_SAMPLE_TIMEOUT_MS = 10000;
 const GPS_MIN_SAMPLES = 4;
+const GPS_STABILITY_GRACE_MS = 45000;
+const GPS_WEAK_READING_LIMIT = 3;
 
 db.ref('hrData').on('value', snap=>{
   hrData = snap.val() || {employees:{},employers:{},fingerprintCodes:{},schedules:{},fingerprintPlaces:{}};
@@ -416,14 +421,14 @@ function acquirePreciseLocation({timeoutMs=GPS_SAMPLE_TIMEOUT_MS,minSamples=GPS_
 function resolveAllowedFingerprintPlace(current){
   const currentAccuracy = getLocationAccuracyMeters(current?.accuracy);
   if(!currentAccuracy || currentAccuracy > GPS_STRICT_MAX_ACCURACY){
-    return {allowed:false,message:`دقة GPS ضعيفة الآن (${Math.round(currentAccuracy || 0)} متر). اقترب من مكان مفتوح أو انتظر ثواني`,current};
+    return {allowed:false,reason:'weak-gps',message:`دقة GPS ضعيفة الآن (${Number(currentAccuracy || 0).toFixed(1)} متر). انتظر ثواني حتى تثبت القراءة`,current};
   }
   const items = getTodayScheduleItems();
-  if(!items.length) return {allowed:false,message:'لا يوجد دوام مسجل لك اليوم'};
+  if(!items.length) return {allowed:false,reason:'no-duty',message:'لا يوجد دوام مسجل لك اليوم'};
   const dutyItem = getCurrentDutyItem();
   const employer = getCurrentEmployer(dutyItem);
   const places = getFingerprintPlacesForEmployer(employer, dutyItem);
-  if(!places.length) return {allowed:false,message:'لم يتم ربط مكان بصمة لهذه الجهة'};
+  if(!places.length) return {allowed:false,reason:'no-place',message:'لم يتم ربط مكان بصمة لهذه الجهة'};
   const nearest = places
     .map(place=>{
       const center = {lat:Number(place.location?.lat),lng:Number(place.location?.lng)};
@@ -435,16 +440,38 @@ function resolveAllowedFingerprintPlace(current){
     })
     .sort((a,b)=>a.distance-b.distance)[0];
   if(!nearest || !Number.isFinite(nearest.distance)){
-    return {allowed:false,message:'مكان البصمة غير مكتمل'};
+    return {allowed:false,reason:'invalid-place',message:'مكان البصمة غير مكتمل'};
   }
   if(nearest.distance > nearest.effectiveRadius){
-    return {allowed:false,message:`أنت خارج حدود البصمة بفارق ${Math.round(nearest.outsideBy)} متر`,nearest,dutyItem,employer,current};
+    return {allowed:false,reason:'outside-zone',message:`أنت خارج حدود البصمة بفارق ${Math.round(nearest.outsideBy)} متر`,nearest,dutyItem,employer,current};
   }
   return {allowed:true,message:'داخل نطاق البصمة، اضغط مطولاً لمدة ثانيتين',nearest,dutyItem,employer,current};
 }
 
 function setZoneAvailability(result){
-  zoneAllowed = !!result?.allowed;
+  const now = Date.now();
+  if(result?.allowed){
+    lastAllowedZoneResult = result;
+    lastAllowedZoneAt = now;
+    weakGpsReadingCount = 0;
+    zoneAllowed = true;
+    zoneStatusMessage = result.message || 'داخل نطاق البصمة';
+    currentZoneMatch = result;
+    renderPunchButtonState();
+    return;
+  }
+  if(result?.reason === 'weak-gps' && lastAllowedZoneResult && now - lastAllowedZoneAt <= GPS_STABILITY_GRACE_MS){
+    weakGpsReadingCount += 1;
+    zoneAllowed = weakGpsReadingCount < GPS_WEAK_READING_LIMIT;
+    zoneStatusMessage = zoneAllowed
+      ? `داخل النطاق - دقة GPS انخفضت مؤقتاً (${weakGpsReadingCount}/${GPS_WEAK_READING_LIMIT})`
+      : (result.message || 'دقة GPS ضعيفة الآن');
+    currentZoneMatch = zoneAllowed ? lastAllowedZoneResult : result;
+    renderPunchButtonState();
+    return;
+  }
+  weakGpsReadingCount = 0;
+  zoneAllowed = false;
   zoneStatusMessage = result?.message || 'جاري التحقق من نطاق البصمة...';
   currentZoneMatch = result || null;
   renderPunchButtonState();
@@ -481,6 +508,9 @@ function stopZoneWatch(){
   zoneAllowed = false;
   currentZoneMatch = null;
   lastKnownLocation = null;
+  lastAllowedZoneResult = null;
+  lastAllowedZoneAt = 0;
+  weakGpsReadingCount = 0;
 }
 
 async function ensureInsideEmployerZone(){
