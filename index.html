@@ -731,12 +731,10 @@ async function handleScannedBarcode(value){
     hideBarcodeAnalysis();
     barcodeLocationCheckBusy = false;
     renderPunchButtonState();
-    if(!isCheckedIn()){
-      zoneStatusMessage = 'تم تحليل الباركود بنجاح، جاري تطبيق بصمة الحضور...';
-      await startPunch({fromBarcode:true});
-    } else {
-      zoneStatusMessage = 'تم تحليل الباركود بنجاح، يمكنك تسجيل بصمة الخروج';
-    }
+    zoneStatusMessage = isCheckedIn()
+      ? 'تم تحليل الباركود بنجاح، جاري تطبيق بصمة الخروج...'
+      : 'تم تحليل الباركود بنجاح، جاري تطبيق بصمة الحضور...';
+    await startPunch({fromBarcode:true});
   } catch(err){
     console.error(err);
     activeBarcodePlace = null;
@@ -1175,6 +1173,10 @@ async function startPunch(options={}){
   const dutyItem = getCurrentDutyItem();
   if(checkedIn && !canExitNormally() && !pendingExitPermissionImage){
     showExitPanel();
+    zoneAllowed = false;
+    activeBarcodePlace = null;
+    zoneStatusMessage = 'ارفق إذن الخروج ثم امسح الباركود لتسجيل بصمة الخروج';
+    renderPunchButtonState();
     return;
   }
   scanning = true;
@@ -1189,7 +1191,9 @@ async function startPunch(options={}){
   const time = formatTimeInput(now);
   try{
     const location = await ensureInsideEmployerZone();
-    status.textContent = options.fromBarcode ? 'جاري اعتماد بصمة الحضور...' : 'جاري تحليل البصمة...';
+    status.textContent = options.fromBarcode
+      ? `جاري اعتماد بصمة ${type === 'out' ? 'الخروج' : 'الحضور'}...`
+      : 'جاري تحليل البصمة...';
     await wait(options.fromBarcode ? 350 : 250);
     const payload = {
       empId:currentEmployee.id,
@@ -1262,9 +1266,11 @@ function renderPunchButtonState(){
     return;
   }
   if(checkedIn){
-    label.textContent = pendingExitPermissionImage ? 'بصمة خروج بإذن' : 'بصمة خروج';
+    label.textContent = pendingExitPermissionImage ? 'امسح باركود الخروج' : 'امسح الباركود';
     document.getElementById('punchStatus').className = 'status ok';
-    document.getElementById('punchStatus').textContent = punchFeedbackMessage || (canExitNormally() ? 'اضغط مطولاً لتسجيل بصمة الخروج' : 'لا يمكن تسجيل الخروج إلا بإذن أو قبل نهاية الدوام ب 15 دقيقة');
+    document.getElementById('punchStatus').textContent = punchFeedbackMessage || (canExitNormally() || pendingExitPermissionImage
+      ? 'امسح الباركود لتسجيل بصمة الخروج'
+      : 'لا يمكن تسجيل الخروج إلا بإذن أو قبل نهاية الدوام ب 15 دقيقة');
   } else {
     label.textContent = 'ضع اصبعك هنا';
     document.getElementById('punchStatus').className = 'status ok';
@@ -1275,13 +1281,13 @@ function renderPunchButtonState(){
 function beginFingerprintHold(event){
   event.preventDefault();
   if(scanning || !currentEmployee) return;
-  if(!zoneAllowed){
+  const checkedIn = isCheckedIn();
+  if(checkedIn){
     startBarcodeScan();
     return;
   }
-  const checkedIn = isCheckedIn();
-  if(checkedIn && !canExitNormally() && !pendingExitPermissionImage){
-    showExitPanel();
+  if(!zoneAllowed){
+    startBarcodeScan();
     return;
   }
   const button = document.getElementById('fingerprintButton');
@@ -1335,8 +1341,7 @@ function attachExitPermission(){
     pendingExitPermissionImage = e.target.result;
     hideExitPanel();
     document.getElementById('punchStatus').className = 'status ok';
-    document.getElementById('punchStatus').textContent = 'تم إرفاق إذن الخروج، اضغط بصمة خروج';
-    renderPunchButtonState();
+    resetBarcodeVerification('تم إرفاق إذن الخروج، امسح الباركود لتسجيل بصمة الخروج');
   };
   reader.readAsDataURL(file);
 }
