@@ -1,7 +1,8 @@
-const CACHE_NAME = 'hrms-basma-pwa-v3';
+const CACHE_NAME = 'hrms-basma-pwa-v4';
 const APP_SHELL = [
   './',
   './index.html',
+  './hr-data-snapshot.js',
   './jsQR.js',
   './manifest.webmanifest',
   './icons/icon-180.png',

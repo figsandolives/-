@@ -224,6 +224,7 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 </script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="hr-data-snapshot.js"></script>
 <script src="jsQR.js"></script>
 <script>
 const firebaseConfig = {
@@ -239,7 +240,64 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-let hrData = {employees:{},employers:{},fingerprintCodes:{},schedules:{},fingerprintPlaces:{}};
+
+function getEmptyHrData(){
+  return {employees:{},employers:{},fingerprintCodes:{},schedules:{},fingerprintPlaces:{}};
+}
+
+function clonePlain(value){
+  return JSON.parse(JSON.stringify(value || {}));
+}
+
+function countObject(value){
+  if(Array.isArray(value)) return value.length;
+  if(value && typeof value === 'object') return Object.keys(value).length;
+  return 0;
+}
+
+function normalizeCollection(value){
+  if(Array.isArray(value)){
+    return value.reduce((payload,item)=>{
+      if(item?.id) payload[item.id] = item;
+      return payload;
+    },{});
+  }
+  return value && typeof value === 'object' ? value : {};
+}
+
+function normalizeHrData(data={}){
+  return {
+    employees:normalizeCollection(data.employees),
+    employers:normalizeCollection(data.employers),
+    fingerprintCodes:data.fingerprintCodes && typeof data.fingerprintCodes === 'object' ? data.fingerprintCodes : {},
+    schedules:data.schedules && typeof data.schedules === 'object' ? data.schedules : {},
+    fingerprintPlaces:normalizeCollection(data.fingerprintPlaces)
+  };
+}
+
+const snapshotHrData = normalizeHrData(window.HRMS_BASMA_DATA_SNAPSHOT || getEmptyHrData());
+const snapshotGeneratedAt = Date.parse(window.HRMS_BASMA_DATA_SNAPSHOT?.generatedAt || '');
+let hrData = clonePlain(snapshotHrData);
+
+function isRemoteHrDataCurrent(remoteData){
+  const remotePublishedAt = Date.parse(remoteData?.corePublishedAt || remoteData?.updatedAt || '');
+  return Number.isFinite(remotePublishedAt)
+    && Number.isFinite(snapshotGeneratedAt)
+    && remotePublishedAt >= snapshotGeneratedAt;
+}
+
+function mergeHrDataWithSnapshot(remoteData){
+  const remote = normalizeHrData(remoteData || {});
+  const remoteIsCurrent = isRemoteHrDataCurrent(remoteData);
+  const merged = clonePlain(snapshotHrData);
+  if(remoteIsCurrent || countObject(remote.employees) > countObject(snapshotHrData.employees)) merged.employees = remote.employees;
+  if(remoteIsCurrent || countObject(remote.employers) > countObject(snapshotHrData.employers)) merged.employers = remote.employers;
+  if(remoteIsCurrent || countObject(remote.fingerprintCodes) > countObject(snapshotHrData.fingerprintCodes)) merged.fingerprintCodes = remote.fingerprintCodes;
+  if(countObject(remote.schedules)) merged.schedules = remote.schedules;
+  if(countObject(remote.fingerprintPlaces)) merged.fingerprintPlaces = remote.fingerprintPlaces;
+  return merged;
+}
+
 let punches = [];
 let currentEmployee = null;
 let scanning = false;
@@ -293,7 +351,7 @@ async function ensureNativeLocationPermission(){
 }
 
 db.ref('hrData').on('value', snap=>{
-  hrData = snap.val() || {employees:{},employers:{},fingerprintCodes:{},schedules:{},fingerprintPlaces:{}};
+  hrData = mergeHrDataWithSnapshot(snap.val());
   if(currentEmployee){
     currentEmployee = hrData.employees?.[currentEmployee.id] || currentEmployee;
     renderApp();
@@ -301,6 +359,10 @@ db.ref('hrData').on('value', snap=>{
   } else {
     restoreSavedEmployeeSession();
   }
+}, error=>{
+  console.warn('تعذر تحميل بيانات Firebase، سيتم استخدام النسخة الاحتياطية', error);
+  hrData = clonePlain(snapshotHrData);
+  restoreSavedEmployeeSession();
 });
 
 db.ref('fingerprintPunches').on('value', snap=>{
@@ -426,7 +488,7 @@ function cancelLoginSelection(){
 }
 
 function login(){
-  const code = document.getElementById('codeInput').value.trim();
+  const code = normalizeDigits(document.getElementById('codeInput').value).replace(/[^0-9]/g,'');
   const match = Object.entries(hrData.fingerprintCodes || {}).find(([,savedCode])=>String(savedCode) === code);
   if(!match){
     document.getElementById('loginError').textContent = 'رمز الدخول غير صحيح';
