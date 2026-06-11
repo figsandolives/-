@@ -66,7 +66,7 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .task-time{font-size:14px;font-weight:800;margin-bottom:5px}
 .task-text{font-size:12px;color:var(--text2);line-height:1.6}
 .empty{font-size:13px;color:var(--text2);padding:12px;text-align:center}
-.fingerprint-panel{text-align:center;background:#fff;border:1px solid var(--border);border-radius:20px;padding:20px}
+.fingerprint-panel{position:relative;overflow:hidden;text-align:center;background:#fff;border:1px solid var(--border);border-radius:20px;padding:20px}
 .fingerprint-button{width:180px;height:180px;border-radius:50%;border:0;margin:10px auto 12px;background:radial-gradient(circle at 50% 35%,#cbd5e1,#64748b 58%,#475569);box-shadow:0 14px 34px rgba(100,116,139,.22);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;color:#fff;font-weight:900;font-size:16px;font-family:'Tajawal',sans-serif;touch-action:none;transition:background .25s,box-shadow .25s,transform .15s,opacity .2s}
 .fingerprint-lines{position:absolute;inset:32px;border-radius:50%;opacity:.8;background:repeating-radial-gradient(circle at center,transparent 0 8px,rgba(255,255,255,.5) 9px 10px)}
 .scan-line{position:absolute;left:26px;right:26px;height:3px;background:#bbf7d0;box-shadow:0 0 18px #bbf7d0;top:20px;opacity:0}
@@ -77,10 +77,14 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .fingerprint-button.holding{transform:scale(.97)}
 .fingerprint-button.holding .scan-line{opacity:1;animation:scan 1s ease-in-out infinite}
 .fingerprint-button.checked-in{background:radial-gradient(circle at 50% 35%,#6ee7b7,#10b981 58%,#047857);box-shadow:0 18px 42px rgba(16,185,129,.35)}
+.fingerprint-button.success{background:radial-gradient(circle at 50% 35%,#86efac,#10b981 56%,#047857);box-shadow:0 22px 48px rgba(16,185,129,.38)}
+.fingerprint-button.success .fingerprint-label{max-width:128px;font-size:20px;line-height:1.35}
 .fingerprint-label{position:relative;z-index:2;max-width:90px;line-height:1.4}
 .status{font-size:14px;color:var(--text2);min-height:24px;font-weight:700}
 .status.ok{color:var(--green)}
 .status.err{color:var(--red)}
+.status.success-large{font-size:22px;font-weight:900;line-height:1.5;color:var(--green)}
+.status.success-large .success-time{display:block;margin-top:4px;font-size:17px;color:var(--text);font-weight:900}
 .barcode-scan-btn{width:100%;height:48px;border:0;border-radius:12px;background:#0f172a;color:#fff;font-family:'Tajawal',sans-serif;font-size:15px;font-weight:900;margin:0 0 12px;cursor:pointer}
 .barcode-scan-btn.active{background:var(--green)}
 .barcode-scanner{margin-bottom:14px;background:var(--panel2);border:1px solid var(--border);border-radius:16px;padding:12px}
@@ -90,6 +94,14 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .barcode-frame{position:absolute;inset:20%;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 999px rgba(2,6,23,.35)}
 .barcode-reader-canvas{display:none}
 .barcode-reader-text{font-size:13px;color:var(--text2);font-weight:800;margin:10px 0 0;text-align:center}
+.barcode-analysis{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);padding:20px}
+.analysis-card{width:100%;max-width:260px;text-align:center}
+.analysis-orbit{width:118px;height:118px;margin:0 auto 16px;border-radius:50%;position:relative;background:radial-gradient(circle,#eff6ff 0 42%,transparent 43%);border:2px solid rgba(37,99,235,.12)}
+.analysis-orbit::before,.analysis-orbit::after{content:"";position:absolute;inset:10px;border-radius:50%;border:4px solid transparent;border-top-color:var(--accent);border-left-color:rgba(37,99,235,.3);animation:spin .9s linear infinite}
+.analysis-orbit::after{inset:26px;border-width:3px;border-top-color:var(--green);border-left-color:rgba(16,185,129,.25);animation-duration:.65s;animation-direction:reverse}
+.analysis-scan{position:absolute;left:24px;right:24px;top:56px;height:3px;background:linear-gradient(90deg,transparent,var(--green),transparent);box-shadow:0 0 16px rgba(16,185,129,.7);animation:analysisScan 1s ease-in-out infinite}
+.analysis-title{font-size:20px;font-weight:900;color:var(--text);margin-bottom:5px}
+.analysis-text{font-size:13px;font-weight:800;color:var(--text2)}
 .exit-panel{display:none;margin-top:14px;padding:14px;background:var(--panel2);border:1px solid var(--border);border-radius:14px;text-align:right}
 .exit-panel.show{display:block}
 .exit-title{font-size:14px;font-weight:900;margin-bottom:10px}
@@ -99,6 +111,7 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .permission-input{width:100%;margin:10px 0;font-family:'Tajawal',sans-serif}
 @keyframes scan{0%{top:24px}50%{top:153px}100%{top:24px}}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes analysisScan{0%{transform:translateY(-28px);opacity:.35}50%{opacity:1}100%{transform:translateY(28px);opacity:.35}}
 @media (max-width:420px){
   .screen{padding:14px}
   .login-card,.app-shell{padding:18px;border-radius:20px}
@@ -160,6 +173,15 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="fingerprint-panel">
+      <div class="barcode-analysis hidden" id="barcodeAnalysis">
+        <div class="analysis-card">
+          <div class="analysis-orbit">
+            <div class="analysis-scan"></div>
+          </div>
+          <div class="analysis-title" id="barcodeAnalysisTitle">جاري تحليل الباركود</div>
+          <div class="analysis-text" id="barcodeAnalysisText">نتأكد من الفرع ومكان العمل</div>
+        </div>
+      </div>
       <div class="barcode-scanner hidden" id="barcodeScannerPanel">
         <div class="barcode-video-wrap">
           <video class="barcode-video" id="barcodeVideo" playsinline muted></video>
@@ -238,6 +260,8 @@ let barcodeScanFrame = null;
 let activeBarcodePlace = null;
 let pendingLoginEmployee = null;
 let punchFeedbackMessage = '';
+let lastPunchSuccess = null;
+let punchSuccessResetTimer = null;
 let barcodeLocationCheckBusy = false;
 
 const dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
@@ -304,6 +328,14 @@ function formatTimeInput(date=new Date()){
   return `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
 }
 
+function formatTimeInputWithSeconds(date=new Date()){
+  return `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}:${String(date.getSeconds()).padStart(2,'0')}`;
+}
+
+function formatExactTimeValue(date=new Date()){
+  return date.toLocaleTimeString('ar-KW',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
+}
+
 function formatTimeValue(time){
   const [hourPart,minutePart='0'] = String(time).split(':');
   const hour = parseInt(hourPart,10);
@@ -311,6 +343,10 @@ function formatTimeValue(time){
   const suffix = hour < 12 ? 'ص' : 'م';
   const displayHour = hour % 12 || 12;
   return minute ? `${displayHour}:${String(minute).padStart(2,'0')}${suffix}` : `${displayHour}${suffix}`;
+}
+
+function wait(ms){
+  return new Promise(resolve=>setTimeout(resolve,ms));
 }
 
 function timeToMin(time){
@@ -480,6 +516,37 @@ function getPunchSuccessMessage(type, date, dutyItem){
   return `شكراً لك تمت بصمة الخروج في الساعة ${timeText}`;
 }
 
+function getPunchSuccessView(type, date, dutyItem){
+  const exactTime = formatExactTimeValue(date);
+  if(type === 'in'){
+    const late = getLateMinutes(date, dutyItem);
+    return {
+      title:'تم تطبيق بصمة الحضور',
+      details:late ? `الوقت: ${exactTime} - تأخير ${late} دقائق` : `الوقت: ${exactTime}`
+    };
+  }
+  return {
+    title:'تم تطبيق بصمة الخروج',
+    details:`الوقت: ${exactTime}`
+  };
+}
+
+function setPunchSuccessState(type, date, dutyItem){
+  clearTimeout(punchSuccessResetTimer);
+  const view = getPunchSuccessView(type, date, dutyItem);
+  lastPunchSuccess = {...view,type,createdAt:Date.now()};
+  punchSuccessResetTimer = setTimeout(()=>{
+    lastPunchSuccess = null;
+    renderPunchButtonState();
+  },6000);
+}
+
+function clearPunchSuccessState(){
+  clearTimeout(punchSuccessResetTimer);
+  punchSuccessResetTimer = null;
+  lastPunchSuccess = null;
+}
+
 function getCurrentDutyItem(){
   const items = getTodayScheduleItems();
   if(!items.length) return null;
@@ -541,8 +608,20 @@ function resetBarcodeVerification(message=''){
   zoneAllowed = false;
   activeBarcodePlace = null;
   punchFeedbackMessage = '';
+  clearPunchSuccessState();
   zoneStatusMessage = message || getExpectedBarcodeMessage();
   renderPunchButtonState();
+}
+
+function showBarcodeAnalysis(title='جاري تحليل الباركود', text='نتأكد من الفرع ومكان العمل'){
+  const panel = document.getElementById('barcodeAnalysis');
+  document.getElementById('barcodeAnalysisTitle').textContent = title;
+  document.getElementById('barcodeAnalysisText').textContent = text;
+  panel?.classList.remove('hidden');
+}
+
+function hideBarcodeAnalysis(){
+  document.getElementById('barcodeAnalysis')?.classList.add('hidden');
 }
 
 function parseFingerprintBarcode(value){
@@ -554,6 +633,8 @@ function parseFingerprintBarcode(value){
 async function startBarcodeScan(){
   if(scanning || barcodeLocationCheckBusy || !currentEmployee) return;
   punchFeedbackMessage = '';
+  clearPunchSuccessState();
+  hideBarcodeAnalysis();
   if(!getFingerprintBarcodePlacesForDuty().length){
     resetBarcodeVerification();
     return;
@@ -636,13 +717,26 @@ async function handleScannedBarcode(value){
   barcodeLocationCheckBusy = true;
   zoneAllowed = false;
   activeBarcodePlace = null;
-  zoneStatusMessage = 'تم مسح الباركود، جاري التأكد من مكان العمل...';
+  zoneStatusMessage = 'جاري تحليل الباركود والتأكد من مكان العمل...';
+  showBarcodeAnalysis();
   renderPunchButtonState();
   try{
-    const verification = await verifyBarcodePlaceLocation(matchedPlace);
+    const [verification] = await Promise.all([
+      verifyBarcodePlaceLocation(matchedPlace),
+      wait(1000)
+    ]);
     activeBarcodePlace = {...matchedPlace,_locationVerification:verification};
     zoneAllowed = true;
     zoneStatusMessage = `داخل مكان العمل - المسافة ${verification.distance.toFixed(1)} متر`;
+    hideBarcodeAnalysis();
+    barcodeLocationCheckBusy = false;
+    renderPunchButtonState();
+    if(!isCheckedIn()){
+      zoneStatusMessage = 'تم تحليل الباركود بنجاح، جاري تطبيق بصمة الحضور...';
+      await startPunch({fromBarcode:true});
+    } else {
+      zoneStatusMessage = 'تم تحليل الباركود بنجاح، يمكنك تسجيل بصمة الخروج';
+    }
   } catch(err){
     console.error(err);
     activeBarcodePlace = null;
@@ -650,6 +744,7 @@ async function handleScannedBarcode(value){
     zoneStatusMessage = err.message || 'أنت لست في مكان العمل';
   } finally {
     barcodeLocationCheckBusy = false;
+    hideBarcodeAnalysis();
     renderPunchButtonState();
   }
 }
@@ -1020,7 +1115,11 @@ async function ensureInsideEmployerZone(){
   }
   const dutyItem = getCurrentDutyItem();
   const employer = getCurrentEmployer(dutyItem);
-  const verification = await verifyBarcodePlaceLocation(activeBarcodePlace);
+  const savedVerification = activeBarcodePlace._locationVerification;
+  const savedAt = Date.parse(savedVerification?.capturedAt || '');
+  const verification = savedVerification && Number.isFinite(savedAt) && Date.now() - savedAt < 15000
+    ? savedVerification
+    : await verifyBarcodePlaceLocation(activeBarcodePlace);
   activeBarcodePlace = {...activeBarcodePlace,_locationVerification:verification};
   return {
     verificationMode:'barcode',
@@ -1062,7 +1161,7 @@ function renderApp(){
   renderPunchButtonState();
 }
 
-async function startPunch(){
+async function startPunch(options={}){
   if(scanning || !currentEmployee) return;
   if(!zoneAllowed){
     document.getElementById('punchStatus').className = 'status err';
@@ -1090,13 +1189,14 @@ async function startPunch(){
   const time = formatTimeInput(now);
   try{
     const location = await ensureInsideEmployerZone();
-    status.textContent = 'جاري تحليل البصمة...';
-    await new Promise(resolve=>setTimeout(resolve,250));
+    status.textContent = options.fromBarcode ? 'جاري اعتماد بصمة الحضور...' : 'جاري تحليل البصمة...';
+    await wait(options.fromBarcode ? 350 : 250);
     const payload = {
       empId:currentEmployee.id,
       empName:currentEmployee.name,
       date,
       time,
+      timeExact:formatTimeInputWithSeconds(now),
       iso:now.toISOString(),
       type,
       location,
@@ -1111,6 +1211,7 @@ async function startPunch(){
     pendingExitPermissionImage = '';
     hideExitPanel();
     punchFeedbackMessage = getPunchSuccessMessage(type, now, dutyItem);
+    setPunchSuccessState(type, now, dutyItem);
     status.className = 'status ok';
     status.textContent = punchFeedbackMessage;
     if(type === 'out'){
@@ -1136,13 +1237,21 @@ function renderPunchButtonState(){
   const label = button.querySelector('.fingerprint-label');
   const scanButton = document.getElementById('barcodeScanButton');
   const checkedIn = isCheckedIn();
-  button.disabled = scanning || barcodeLocationCheckBusy;
+  button.disabled = scanning || barcodeLocationCheckBusy || Boolean(lastPunchSuccess);
   button.classList.toggle('locked', !zoneAllowed);
   button.classList.toggle('ready', zoneAllowed && !scanning);
   button.classList.toggle('checked-in', checkedIn && zoneAllowed);
+  button.classList.toggle('success', Boolean(lastPunchSuccess));
   if(scanButton){
     scanButton.classList.toggle('active', zoneAllowed);
     scanButton.textContent = zoneAllowed ? 'تم مسح باركود الفرع' : 'مسح باركود الفرع';
+  }
+  if(lastPunchSuccess){
+    label.textContent = lastPunchSuccess.title;
+    const status = document.getElementById('punchStatus');
+    status.className = 'status ok success-large';
+    status.innerHTML = `<span>${lastPunchSuccess.title}</span><span class="success-time">${lastPunchSuccess.details}</span>`;
+    return;
   }
   if(!zoneAllowed){
     label.textContent = 'امسح الباركود';

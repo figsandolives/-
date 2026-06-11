@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hrms-basma-pwa-v1';
+const CACHE_NAME = 'hrms-basma-pwa-v2';
 const APP_SHELL = [
   './',
   './index.html',
