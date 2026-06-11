@@ -4,7 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>تطبيق البصمة</title>
+<meta name="theme-color" content="#10b981">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="تطبيق البصمة">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2310b981'/%3E%3Cpath d='M20 32c0-6.6 5.4-12 12-12s12 5.4 12 12' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M24 38c0-4.4 3.6-8 8-8s8 3.6 8 8' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M32 40v8' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<script>
+try{
+  if(localStorage.getItem('hrms-basma-employee-id')){
+    document.documentElement.classList.add('has-saved-employee');
+  }
+} catch(_err){}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -16,6 +30,13 @@
 body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 .screen{min-height:100vh;padding:22px;display:flex;align-items:center;justify-content:center}
 .hidden{display:none!important}
+.session-loading{display:none}
+.has-saved-employee #sessionLoadingScreen{display:flex}
+.has-saved-employee #loginScreen{display:none}
+.session-loading-card{width:100%;max-width:340px;background:var(--panel);border:1px solid var(--border);border-radius:22px;box-shadow:var(--shadow);padding:28px;text-align:center}
+.session-spinner{width:48px;height:48px;border-radius:50%;border:4px solid #dbe3ee;border-top-color:var(--accent);margin:0 auto 14px;animation:spin .8s linear infinite}
+.session-loading-card h2{font-size:19px;font-weight:900;margin-bottom:6px}
+.session-loading-card p{font-size:13px;color:var(--text2)}
 .login-card,.app-shell{width:100%;max-width:430px;background:var(--panel);border:1px solid var(--border);border-radius:24px;box-shadow:var(--shadow);padding:24px}
 .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
 .brand-icon{width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#1d4ed8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:27px;font-weight:900}
@@ -26,6 +47,13 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(37,99,235,.14)}
 .btn{width:100%;height:52px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-family:'Tajawal',sans-serif;font-size:17px;font-weight:900;margin-top:14px;cursor:pointer}
 .error{min-height:22px;margin-top:10px;color:var(--red);font-size:13px;text-align:center}
+.confirm-backdrop{position:fixed;inset:0;z-index:50;background:rgba(15,23,42,.38);display:flex;align-items:center;justify-content:center;padding:18px}
+.confirm-card{width:100%;max-width:360px;background:#fff;border:1px solid var(--border);border-radius:22px;box-shadow:var(--shadow);padding:22px;text-align:center}
+.confirm-icon{width:58px;height:58px;border-radius:18px;background:rgba(37,99,235,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;font-weight:900}
+.confirm-title{font-size:20px;font-weight:900;margin-bottom:8px}
+.confirm-name{font-size:18px;font-weight:900;color:var(--accent);margin-bottom:8px}
+.confirm-text{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
+.confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .hello{font-size:21px;font-weight:900}
 .sub{font-size:13px;color:var(--text2);margin-top:2px}
@@ -45,7 +73,7 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .fingerprint-button.scanning .scan-line{opacity:1;animation:scan 1.35s ease-in-out infinite}
 .fingerprint-button.scanning{background:radial-gradient(circle at 50% 35%,#34d399,#10b981 58%,#047857)}
 .fingerprint-button.ready{background:radial-gradient(circle at 50% 35%,#6ee7b7,#10b981 58%,#047857);box-shadow:0 18px 42px rgba(16,185,129,.35);cursor:pointer}
-.fingerprint-button.locked{background:radial-gradient(circle at 50% 35%,#cbd5e1,#64748b 58%,#475569);box-shadow:0 12px 30px rgba(100,116,139,.18);cursor:not-allowed;opacity:.72}
+.fingerprint-button.locked{background:radial-gradient(circle at 50% 35%,#cbd5e1,#64748b 58%,#475569);box-shadow:0 12px 30px rgba(100,116,139,.18);cursor:pointer;opacity:.72}
 .fingerprint-button.holding{transform:scale(.97)}
 .fingerprint-button.holding .scan-line{opacity:1;animation:scan 1s ease-in-out infinite}
 .fingerprint-button.checked-in{background:radial-gradient(circle at 50% 35%,#6ee7b7,#10b981 58%,#047857);box-shadow:0 18px 42px rgba(16,185,129,.35)}
@@ -53,6 +81,15 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .status{font-size:14px;color:var(--text2);min-height:24px;font-weight:700}
 .status.ok{color:var(--green)}
 .status.err{color:var(--red)}
+.barcode-scan-btn{width:100%;height:48px;border:0;border-radius:12px;background:#0f172a;color:#fff;font-family:'Tajawal',sans-serif;font-size:15px;font-weight:900;margin:0 0 12px;cursor:pointer}
+.barcode-scan-btn.active{background:var(--green)}
+.barcode-scanner{margin-bottom:14px;background:var(--panel2);border:1px solid var(--border);border-radius:16px;padding:12px}
+.fingerprint-panel.barcode-active .fingerprint-button{display:none}
+.barcode-video-wrap{position:relative;overflow:hidden;border-radius:14px;background:#020617;aspect-ratio:1/1}
+.barcode-video{width:100%;height:100%;object-fit:cover;display:block}
+.barcode-frame{position:absolute;inset:20%;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 999px rgba(2,6,23,.35)}
+.barcode-reader-canvas{display:none}
+.barcode-reader-text{font-size:13px;color:var(--text2);font-weight:800;margin:10px 0 0;text-align:center}
 .exit-panel{display:none;margin-top:14px;padding:14px;background:var(--panel2);border:1px solid var(--border);border-radius:14px;text-align:right}
 .exit-panel.show{display:block}
 .exit-title{font-size:14px;font-weight:900;margin-bottom:10px}
@@ -61,6 +98,7 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .mini-btn.secondary{background:#fff;color:var(--text);border:1px solid var(--border)}
 .permission-input{width:100%;margin:10px 0;font-family:'Tajawal',sans-serif}
 @keyframes scan{0%{top:24px}50%{top:153px}100%{top:24px}}
+@keyframes spin{to{transform:rotate(360deg)}}
 @media (max-width:420px){
   .screen{padding:14px}
   .login-card,.app-shell{padding:18px;border-radius:20px}
@@ -69,6 +107,14 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 </style>
 </head>
 <body>
+<section class="screen session-loading" id="sessionLoadingScreen">
+  <div class="session-loading-card">
+    <div class="session-spinner"></div>
+    <h2>جاري فتح حسابك</h2>
+    <p>نتأكد من الموظف المحفوظ على هذا الجهاز</p>
+  </div>
+</section>
+
 <section class="screen" id="loginScreen">
   <div class="login-card">
     <div class="brand">
@@ -84,6 +130,19 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
     <div class="error" id="loginError"></div>
   </div>
 </section>
+
+<div class="confirm-backdrop hidden" id="employeeConfirmModal">
+  <div class="confirm-card">
+    <div class="confirm-icon">✓</div>
+    <div class="confirm-title">تأكيد الموظف</div>
+    <div class="confirm-name" id="confirmEmployeeName"></div>
+    <div class="confirm-text">هل هذا هو حسابك؟ بعد الموافقة سيتعرف التطبيق على هذا الجهاز دائماً إلى أن تضغط خروج.</div>
+    <div class="confirm-actions">
+      <button class="mini-btn secondary" type="button" onclick="cancelLoginSelection()">لا</button>
+      <button class="mini-btn" type="button" onclick="confirmLoginSelection()">نعم، هذا أنا</button>
+    </div>
+  </div>
+</div>
 
 <section class="screen hidden" id="appScreen">
   <div class="app-shell">
@@ -101,7 +160,16 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
     </div>
 
     <div class="fingerprint-panel">
-      <button class="fingerprint-button locked" id="fingerprintButton" type="button" disabled onpointerdown="beginFingerprintHold(event)" onpointerup="cancelFingerprintHold(event)" onpointerleave="cancelFingerprintHold(event)" onpointercancel="cancelFingerprintHold(event)" onclick="event.preventDefault()">
+      <div class="barcode-scanner hidden" id="barcodeScannerPanel">
+        <div class="barcode-video-wrap">
+          <video class="barcode-video" id="barcodeVideo" playsinline muted></video>
+          <div class="barcode-frame"></div>
+        </div>
+        <canvas class="barcode-reader-canvas" id="barcodeCanvas"></canvas>
+        <div class="barcode-reader-text" id="barcodeReaderText">وجّه الكاميرا نحو باركود الفرع</div>
+        <button class="mini-btn secondary" style="width:100%;margin-top:10px" onclick="stopBarcodeScan()">إغلاق الكاميرا</button>
+      </div>
+      <button class="fingerprint-button locked" id="fingerprintButton" type="button" onpointerdown="beginFingerprintHold(event)" onpointerup="cancelFingerprintHold(event)" onpointerleave="cancelFingerprintHold(event)" onpointercancel="cancelFingerprintHold(event)" onclick="event.preventDefault()">
         <span class="fingerprint-lines"></span>
         <span class="scan-line"></span>
         <span class="fingerprint-label">ضع اصبعك هنا</span>
@@ -123,8 +191,18 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </section>
 
+<script>
+(function loadCapacitorBridge(){
+  const isNativeHost = location.protocol === 'capacitor:' || location.hostname === 'localhost';
+  if(!isNativeHost) return;
+  const script = document.createElement('script');
+  script.src = 'capacitor.js';
+  document.head.appendChild(script);
+})();
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="jsQR.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyC5aYsmT1qUJd5D8GVh5WlIlLeiT35t8WQ",
@@ -144,30 +222,60 @@ let punches = [];
 let currentEmployee = null;
 let scanning = false;
 let pendingExitPermissionImage = '';
-let zoneWatchId = null;
+let zoneWatchHandle = null;
 let zoneAllowed = false;
-let zoneStatusMessage = 'جاري التحقق من نطاق البصمة...';
+let zoneStatusMessage = 'امسح باركود الفرع لتفعيل البصمة';
 let currentZoneMatch = null;
 let lastKnownLocation = null;
 let lastAllowedZoneResult = null;
 let lastAllowedZoneAt = 0;
 let weakGpsReadingCount = 0;
 let holdTimer = null;
+let zoneRefreshTimer = null;
+let zoneRefreshBusy = false;
+let barcodeScanStream = null;
+let barcodeScanFrame = null;
+let activeBarcodePlace = null;
+let pendingLoginEmployee = null;
+let punchFeedbackMessage = '';
+let barcodeLocationCheckBusy = false;
 
 const dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
-const branchNames = {surra:'فرع السرة',abulhasania:'فرع أبو الحصانية',yarmouk:'فرع اليرموك',fixed:'دوام ثابت'};
-const GPS_STRICT_MAX_ACCURACY = 15;
-const GPS_SAMPLE_TIMEOUT_MS = 10000;
-const GPS_MIN_SAMPLES = 4;
-const GPS_STABILITY_GRACE_MS = 45000;
-const GPS_WEAK_READING_LIMIT = 3;
+const branchNames = {surra:'فرع حولي',abulhasania:'فرع أبو الحصانية',yarmouk:'فرع اليرموك',fixed:'دوام ثابت'};
+const SAVED_EMPLOYEE_STORAGE_KEY = 'hrms-basma-employee-id';
+const GPS_STRICT_MAX_ACCURACY = 35;
+const GPS_SAMPLE_TIMEOUT_MS = 6500;
+const GPS_MIN_SAMPLES = 2;
+const GPS_FAST_REFRESH_MS = 2200;
+const GPS_LAST_LOCATION_MAX_AGE_MS = 12000;
+const GPS_STABILITY_GRACE_MS = 0;
+const GPS_WEAK_READING_LIMIT = 1;
+
+function getCapacitorGeolocation(){
+  return window.Capacitor?.Plugins?.Geolocation || window.Capacitor?.Geolocation || null;
+}
+
+async function ensureNativeLocationPermission(){
+  const geolocation = getCapacitorGeolocation();
+  if(!geolocation?.checkPermissions || !geolocation?.requestPermissions) return;
+  const status = await geolocation.checkPermissions().catch(()=>null);
+  if(status?.location === 'granted' || status?.coarseLocation === 'granted') return;
+  const requested = await geolocation.requestPermissions().catch(error=>{
+    throw new Error(error?.message || 'اسمح للتطبيق بالوصول إلى الموقع');
+  });
+  if(requested?.location !== 'granted' && requested?.coarseLocation !== 'granted'){
+    throw new Error('اسمح للتطبيق بالوصول إلى الموقع');
+  }
+}
 
 db.ref('hrData').on('value', snap=>{
   hrData = snap.val() || {employees:{},employers:{},fingerprintCodes:{},schedules:{},fingerprintPlaces:{}};
   if(currentEmployee){
     currentEmployee = hrData.employees?.[currentEmployee.id] || currentEmployee;
     renderApp();
-    if(lastKnownLocation) setZoneAvailability(resolveAllowedFingerprintPlace(lastKnownLocation));
+    if(activeBarcodePlace && !isBarcodePlaceValidForCurrentDuty(activeBarcodePlace)) resetBarcodeVerification();
+  } else {
+    restoreSavedEmployeeSession();
   }
 });
 
@@ -210,6 +318,77 @@ function timeToMin(time){
   return (h || 0) * 60 + (m || 0);
 }
 
+function getSavedEmployeeId(){
+  try{
+    return localStorage.getItem(SAVED_EMPLOYEE_STORAGE_KEY) || '';
+  } catch(_err){
+    return '';
+  }
+}
+
+function saveEmployeeForThisDevice(employee){
+  try{
+    localStorage.setItem(SAVED_EMPLOYEE_STORAGE_KEY, employee.id);
+  } catch(_err){}
+}
+
+function clearSavedEmployeeForThisDevice(){
+  try{
+    localStorage.removeItem(SAVED_EMPLOYEE_STORAGE_KEY);
+  } catch(_err){}
+}
+
+function setAuthScreen(isLoggedIn){
+  document.documentElement.classList.remove('has-saved-employee');
+  document.getElementById('sessionLoadingScreen')?.classList.add('hidden');
+  document.getElementById('loginScreen').classList.toggle('hidden', isLoggedIn);
+  document.getElementById('appScreen').classList.toggle('hidden', !isLoggedIn);
+}
+
+function completeLogin(employee, options={}){
+  currentEmployee = employee;
+  if(options.persist) saveEmployeeForThisDevice(employee);
+  document.getElementById('employeeConfirmModal')?.classList.add('hidden');
+  document.getElementById('loginError').textContent = '';
+  setAuthScreen(true);
+  renderApp();
+  resetBarcodeVerification();
+}
+
+function restoreSavedEmployeeSession(){
+  if(pendingLoginEmployee) return;
+  const savedId = getSavedEmployeeId();
+  if(!savedId || !hrData.employees) return;
+  const savedEmployee = hrData.employees[savedId];
+  if(savedEmployee){
+    completeLogin(savedEmployee);
+  } else if(Object.keys(hrData.employees).length){
+    clearSavedEmployeeForThisDevice();
+    setAuthScreen(false);
+  }
+}
+
+function showEmployeeConfirmation(employee){
+  pendingLoginEmployee = employee;
+  document.getElementById('confirmEmployeeName').textContent = employee.name || 'موظف';
+  document.getElementById('employeeConfirmModal').classList.remove('hidden');
+}
+
+function confirmLoginSelection(){
+  if(!pendingLoginEmployee) return;
+  const employee = pendingLoginEmployee;
+  pendingLoginEmployee = null;
+  completeLogin(employee,{persist:true});
+}
+
+function cancelLoginSelection(){
+  pendingLoginEmployee = null;
+  currentEmployee = null;
+  document.getElementById('employeeConfirmModal').classList.add('hidden');
+  document.getElementById('loginError').textContent = 'تم إلغاء الدخول';
+  document.getElementById('codeInput').value = '';
+}
+
 function login(){
   const code = document.getElementById('codeInput').value.trim();
   const match = Object.entries(hrData.fingerprintCodes || {}).find(([,savedCode])=>String(savedCode) === code);
@@ -217,24 +396,24 @@ function login(){
     document.getElementById('loginError').textContent = 'رمز الدخول غير صحيح';
     return;
   }
-  currentEmployee = hrData.employees?.[match[0]];
-  if(!currentEmployee){
+  const employee = hrData.employees?.[match[0]];
+  if(!employee){
     document.getElementById('loginError').textContent = 'لم يتم العثور على بيانات الموظف';
     return;
   }
-  document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('appScreen').classList.remove('hidden');
-  renderApp();
-  startZoneWatch();
+  showEmployeeConfirmation(employee);
 }
 
 function logout(){
-  stopZoneWatch();
+  stopBarcodeScan();
+  resetBarcodeVerification();
   cancelFingerprintHold();
+  clearSavedEmployeeForThisDevice();
+  pendingLoginEmployee = null;
+  document.getElementById('employeeConfirmModal')?.classList.add('hidden');
   currentEmployee = null;
   document.getElementById('codeInput').value = '';
-  document.getElementById('loginScreen').classList.remove('hidden');
-  document.getElementById('appScreen').classList.add('hidden');
+  setAuthScreen(false);
 }
 
 function getTodayScheduleItems(){
@@ -286,6 +465,21 @@ function canExitNormally(){
   return nowMinutes >= endMinutes - 15;
 }
 
+function getLateMinutes(date, dutyItem){
+  if(!dutyItem?.from) return 0;
+  const nowMinutes = date.getHours()*60 + date.getMinutes();
+  return Math.max(0, nowMinutes - timeToMin(dutyItem.from));
+}
+
+function getPunchSuccessMessage(type, date, dutyItem){
+  const timeText = formatTimeValue(formatTimeInput(date));
+  if(type === 'in'){
+    const late = getLateMinutes(date, dutyItem);
+    return `شكراً لك تمت بصمة الدخول في الساعة ${timeText}${late ? ` - تأخير ${late} دقائق` : ''}`;
+  }
+  return `شكراً لك تمت بصمة الخروج في الساعة ${timeText}`;
+}
+
 function getCurrentDutyItem(){
   const items = getTodayScheduleItems();
   if(!items.length) return null;
@@ -312,6 +506,154 @@ function getFingerprintPlacesForEmployer(employer, dutyItem){
   });
 }
 
+const FINGERPRINT_BARCODE_PREFIX = 'HRMS-BASMA:';
+
+function getCurrentDutyBranchKey(dutyItem=getCurrentDutyItem()){
+  if(dutyItem?.zone && dutyItem.zone !== 'fixed') return dutyItem.zone;
+  const employer = getCurrentEmployer(dutyItem);
+  const branches = Array.isArray(employer?.branches) ? employer.branches : [];
+  return branches.length === 1 ? branches[0] : '';
+}
+
+function getFingerprintBarcodePlacesForDuty(dutyItem=getCurrentDutyItem()){
+  const branchKey = getCurrentDutyBranchKey(dutyItem);
+  if(!branchKey) return [];
+  return Object.values(hrData.fingerprintPlaces || {}).filter(place=>
+    (place?.mode === 'barcode' || place?.barcodeToken || place?.barcodeValue) && place.branchKey === branchKey
+  );
+}
+
+function isBarcodePlaceValidForCurrentDuty(place){
+  if(!place?.barcodeToken) return false;
+  return getFingerprintBarcodePlacesForDuty().some(item=>item.id === place.id || item.barcodeToken === place.barcodeToken);
+}
+
+function getExpectedBarcodeMessage(){
+  const dutyItem = getCurrentDutyItem();
+  if(!dutyItem) return 'لا يوجد دوام مسجل لك اليوم';
+  const branchKey = getCurrentDutyBranchKey(dutyItem);
+  const branchName = branchNames[branchKey] || dutyItem.employerName || currentEmployee?.employer || 'فرع الدوام';
+  if(!getFingerprintBarcodePlacesForDuty(dutyItem).length) return `لم يتم إنشاء باركود لهذا الفرع: ${branchName}`;
+  return `امسح باركود ${branchName} لتفعيل البصمة`;
+}
+
+function resetBarcodeVerification(message=''){
+  zoneAllowed = false;
+  activeBarcodePlace = null;
+  punchFeedbackMessage = '';
+  zoneStatusMessage = message || getExpectedBarcodeMessage();
+  renderPunchButtonState();
+}
+
+function parseFingerprintBarcode(value){
+  const text = String(value || '').trim();
+  if(text.startsWith(FINGERPRINT_BARCODE_PREFIX)) return text.slice(FINGERPRINT_BARCODE_PREFIX.length);
+  return '';
+}
+
+async function startBarcodeScan(){
+  if(scanning || barcodeLocationCheckBusy || !currentEmployee) return;
+  punchFeedbackMessage = '';
+  if(!getFingerprintBarcodePlacesForDuty().length){
+    resetBarcodeVerification();
+    return;
+  }
+  stopBarcodeScan();
+  document.querySelector('.fingerprint-panel')?.classList.add('barcode-active');
+  const panel = document.getElementById('barcodeScannerPanel');
+  const video = document.getElementById('barcodeVideo');
+  const readerText = document.getElementById('barcodeReaderText');
+  panel?.classList.remove('hidden');
+  if(readerText) readerText.textContent = 'وجّه الكاميرا نحو باركود الفرع';
+  try{
+    if(!navigator.mediaDevices?.getUserMedia) throw new Error('الكاميرا غير مدعومة على هذا الجهاز');
+    barcodeScanStream = await navigator.mediaDevices.getUserMedia({
+      video:{
+        facingMode:{ideal:'environment'},
+        width:{ideal:1280},
+        height:{ideal:720}
+      },
+      audio:false
+    });
+    video.srcObject = barcodeScanStream;
+    await video.play();
+    scanBarcodeFrame();
+  } catch(err){
+    console.error(err);
+    if(readerText) readerText.textContent = err.message || 'اسمح للتطبيق باستخدام الكاميرا';
+    zoneStatusMessage = 'اسمح للتطبيق باستخدام الكاميرا لمسح الباركود';
+    renderPunchButtonState();
+  }
+}
+
+function stopBarcodeScan(){
+  if(barcodeScanFrame) cancelAnimationFrame(barcodeScanFrame);
+  barcodeScanFrame = null;
+  if(barcodeScanStream){
+    barcodeScanStream.getTracks().forEach(track=>track.stop());
+    barcodeScanStream = null;
+  }
+  const video = document.getElementById('barcodeVideo');
+  if(video) video.srcObject = null;
+  document.querySelector('.fingerprint-panel')?.classList.remove('barcode-active');
+  document.getElementById('barcodeScannerPanel')?.classList.add('hidden');
+}
+
+function scanBarcodeFrame(){
+  const video = document.getElementById('barcodeVideo');
+  const canvas = document.getElementById('barcodeCanvas');
+  const readerText = document.getElementById('barcodeReaderText');
+  if(!video || !canvas || !barcodeScanStream) return;
+  if(video.readyState === video.HAVE_ENOUGH_DATA){
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const image = ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code = window.jsQR?.(image.data,image.width,image.height,{inversionAttempts:'dontInvert'});
+    if(code?.data){
+      handleScannedBarcode(code.data);
+      return;
+    }
+    if(readerText) readerText.textContent = 'قرّب الكاميرا من الباركود وثبّت الصورة';
+  }
+  barcodeScanFrame = requestAnimationFrame(scanBarcodeFrame);
+}
+
+async function handleScannedBarcode(value){
+  const token = parseFingerprintBarcode(value);
+  const matchedPlace = getFingerprintBarcodePlacesForDuty().find(place=>place.barcodeToken === token || place.barcodeValue === value);
+  if(!token || !matchedPlace){
+    document.getElementById('barcodeReaderText').textContent = 'هذا الباركود لا يخص فرع دوامك';
+    zoneAllowed = false;
+    activeBarcodePlace = null;
+    zoneStatusMessage = 'الباركود غير صحيح لهذا الفرع';
+    renderPunchButtonState();
+    barcodeScanFrame = requestAnimationFrame(scanBarcodeFrame);
+    return;
+  }
+  stopBarcodeScan();
+  barcodeLocationCheckBusy = true;
+  zoneAllowed = false;
+  activeBarcodePlace = null;
+  zoneStatusMessage = 'تم مسح الباركود، جاري التأكد من مكان العمل...';
+  renderPunchButtonState();
+  try{
+    const verification = await verifyBarcodePlaceLocation(matchedPlace);
+    activeBarcodePlace = {...matchedPlace,_locationVerification:verification};
+    zoneAllowed = true;
+    zoneStatusMessage = `داخل مكان العمل - المسافة ${verification.distance.toFixed(1)} متر`;
+  } catch(err){
+    console.error(err);
+    activeBarcodePlace = null;
+    zoneAllowed = false;
+    zoneStatusMessage = err.message || 'أنت لست في مكان العمل';
+  } finally {
+    barcodeLocationCheckBusy = false;
+    renderPunchButtonState();
+  }
+}
+
 function distanceMeters(a,b){
   const earth = 6371000;
   const toRad = value=>value * Math.PI / 180;
@@ -329,20 +671,121 @@ function getLocationAccuracyMeters(value){
 }
 
 function getFingerprintLocationTolerance(current, place){
-  const currentAccuracy = getLocationAccuracyMeters(current?.accuracy);
-  const savedAccuracy = getLocationAccuracyMeters(place?.location?.accuracy);
-  return Math.min(18, Math.max(6, currentAccuracy, savedAccuracy));
+  return 0;
 }
 
-function normalizeGeoPosition(pos){
+function getFiniteNumber(value){
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function getBarcodePlaceCenter(place){
+  const lat = Number(place?.location?.lat);
+  const lng = Number(place?.location?.lng);
+  if(!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return {lat,lng};
+}
+
+async function verifyBarcodePlaceLocation(place){
+  const center = getBarcodePlaceCenter(place);
+  const radius = Number(place?.radiusMeters) || 0;
+  if(!center || radius <= 0){
+    throw new Error('لم يتم تحديد إحداثيات وحدود لهذا الباركود');
+  }
+  const current = await acquirePreciseLocation({
+    timeoutMs:GPS_SAMPLE_TIMEOUT_MS,
+    minSamples:GPS_MIN_SAMPLES,
+    targetAccuracy:GPS_STRICT_MAX_ACCURACY
+  });
+  const distance = distanceMeters(current,center);
+  if(distance > radius){
+    throw new Error(`أنت لست في مكان العمل - المسافة ${distance.toFixed(1)} متر والحد ${radius} متر`);
+  }
+  return {
+    ...current,
+    distance,
+    radiusMeters:radius,
+    center
+  };
+}
+
+function normalizeGeoPosition(pos, source='browser'){
   return {
     lat:pos.coords.latitude,
     lng:pos.coords.longitude,
     accuracy:pos.coords.accuracy,
     altitude:pos.coords.altitude,
     altitudeAccuracy:pos.coords.altitudeAccuracy,
+    source,
+    timestamp:pos.timestamp || Date.now(),
     capturedAt:new Date(pos.timestamp || Date.now()).toISOString()
   };
+}
+
+function getLocationAgeMs(location){
+  const timestamp = Number(location?.timestamp) || Date.parse(location?.capturedAt || '');
+  return Number.isFinite(timestamp) ? Date.now() - timestamp : Infinity;
+}
+
+async function watchDevicePosition(onPosition,onError,options={}){
+  const nativeGeolocation = getCapacitorGeolocation();
+  if(nativeGeolocation?.watchPosition){
+    await ensureNativeLocationPermission();
+    const id = await nativeGeolocation.watchPosition({
+      enableHighAccuracy:options.enableHighAccuracy !== false,
+      timeout:options.timeout,
+      maximumAge:options.maximumAge ?? 0
+    },(position,error)=>{
+      if(error){
+        onError?.(error);
+        return;
+      }
+      if(position?.coords) onPosition(normalizeGeoPosition(position,'native'));
+    });
+    return {source:'native',id};
+  }
+  if(!navigator.geolocation) throw new Error('الموقع غير مدعوم في هذا الجهاز');
+  const id = navigator.geolocation.watchPosition(
+    position=>onPosition(normalizeGeoPosition(position,'browser')),
+    error=>onError?.(error),
+    options
+  );
+  return {source:'browser',id};
+}
+
+async function getSingleDevicePosition(options={}){
+  const nativeGeolocation = getCapacitorGeolocation();
+  if(nativeGeolocation?.getCurrentPosition){
+    await ensureNativeLocationPermission();
+    const position = await nativeGeolocation.getCurrentPosition({
+      enableHighAccuracy:options.enableHighAccuracy !== false,
+      timeout:options.timeout ?? 6000,
+      maximumAge:options.maximumAge ?? 0
+    });
+    return normalizeGeoPosition(position,'native');
+  }
+  if(!navigator.geolocation) throw new Error('الموقع غير مدعوم في هذا الجهاز');
+  return new Promise((resolve,reject)=>{
+    navigator.geolocation.getCurrentPosition(
+      position=>resolve(normalizeGeoPosition(position,'browser')),
+      error=>reject(error),
+      {
+        enableHighAccuracy:options.enableHighAccuracy !== false,
+        timeout:options.timeout ?? 6000,
+        maximumAge:options.maximumAge ?? 0
+      }
+    );
+  });
+}
+
+function clearDevicePositionWatch(handle){
+  if(!handle) return;
+  if(handle.source === 'native'){
+    const result = getCapacitorGeolocation()?.clearWatch?.({id:String(handle.id)});
+    if(result?.catch) result.catch(()=>{});
+    return;
+  }
+  if(navigator.geolocation) navigator.geolocation.clearWatch(handle.id);
 }
 
 function combineLocationSamples(samples){
@@ -378,17 +821,17 @@ function combineLocationSamples(samples){
 
 function acquirePreciseLocation({timeoutMs=GPS_SAMPLE_TIMEOUT_MS,minSamples=GPS_MIN_SAMPLES,targetAccuracy=GPS_STRICT_MAX_ACCURACY}={}){
   return new Promise((resolve,reject)=>{
-    if(!navigator.geolocation){
+    if(!getCapacitorGeolocation() && !navigator.geolocation){
       reject(new Error('الموقع غير مدعوم في هذا الجهاز'));
       return;
     }
     const samples = [];
     let settled = false;
-    let watchId = null;
+    let watchHandle = null;
     const finish = (callback,value)=>{
       if(settled) return;
       settled = true;
-      if(watchId !== null) navigator.geolocation.clearWatch(watchId);
+      clearDevicePositionWatch(watchHandle);
       clearTimeout(timer);
       callback(value);
     };
@@ -397,23 +840,28 @@ function acquirePreciseLocation({timeoutMs=GPS_SAMPLE_TIMEOUT_MS,minSamples=GPS_
       if(combined) finish(resolve, combined);
       else finish(reject, new Error('تعذر التقاط موقع دقيق'));
     },timeoutMs);
-    watchId = navigator.geolocation.watchPosition(pos=>{
-      samples.push(normalizeGeoPosition(pos));
+    watchDevicePosition(position=>{
+      samples.push(position);
       const combined = combineLocationSamples(samples);
       if(combined && samples.length >= minSamples && combined.accuracy <= targetAccuracy){
         finish(resolve, combined);
       }
-    },()=>{
+    },error=>{
       if(samples.length){
         const combined = combineLocationSamples(samples);
         finish(resolve, combined);
       } else {
-        finish(reject, new Error('اسمح للتطبيق بالوصول إلى الموقع'));
+        finish(reject, new Error(error?.message || 'اسمح للتطبيق بالوصول إلى الموقع'));
       }
     },{
       enableHighAccuracy:true,
       timeout:timeoutMs,
       maximumAge:0
+    }).then(handle=>{
+      watchHandle = handle;
+      if(settled) clearDevicePositionWatch(watchHandle);
+    }).catch(error=>{
+      finish(reject, new Error(error?.message || 'تعذر تشغيل خدمة الموقع'));
     });
   });
 }
@@ -433,19 +881,44 @@ function resolveAllowedFingerprintPlace(current){
     .map(place=>{
       const center = {lat:Number(place.location?.lat),lng:Number(place.location?.lng)};
       const radius = Number(place.radiusMeters) || 20;
-      const distance = Number.isFinite(center.lat) && Number.isFinite(center.lng) ? distanceMeters(current,center) : Infinity;
+      const horizontalDistance = Number.isFinite(center.lat) && Number.isFinite(center.lng) ? distanceMeters(current,center) : Infinity;
+      const currentAltitude = getFiniteNumber(current?.altitude);
+      const placeAltitude = getFiniteNumber(place.location?.altitude);
+      const verticalDistance = currentAltitude !== null && placeAltitude !== null
+        ? Math.abs(currentAltitude - placeAltitude)
+        : null;
+      const distance = verticalDistance !== null
+        ? Math.sqrt(horizontalDistance ** 2 + verticalDistance ** 2)
+        : horizontalDistance;
       const tolerance = getFingerprintLocationTolerance(current, place);
-      const effectiveRadius = radius + tolerance;
-      return {place,radius,distance,tolerance,effectiveRadius,outsideBy:Math.max(0,distance-effectiveRadius)};
+      const effectiveRadius = radius;
+      return {
+        place,
+        radius,
+        distance,
+        horizontalDistance,
+        verticalDistance,
+        tolerance,
+        effectiveRadius,
+        outsideBy:Math.max(0,distance-effectiveRadius)
+      };
     })
     .sort((a,b)=>a.distance-b.distance)[0];
   if(!nearest || !Number.isFinite(nearest.distance)){
     return {allowed:false,reason:'invalid-place',message:'مكان البصمة غير مكتمل'};
   }
   if(nearest.distance > nearest.effectiveRadius){
-    return {allowed:false,reason:'outside-zone',message:`أنت خارج حدود البصمة بفارق ${Math.round(nearest.outsideBy)} متر`,nearest,dutyItem,employer,current};
+    return {
+      allowed:false,
+      reason:'outside-zone',
+      message:`أنت خارج حدود البصمة بفارق ${Math.round(nearest.outsideBy)} متر - المسافة الآن ${nearest.distance.toFixed(1)} متر والحد ${nearest.radius} متر`,
+      nearest,
+      dutyItem,
+      employer,
+      current
+    };
   }
-  return {allowed:true,message:'داخل نطاق البصمة، اضغط مطولاً لمدة ثانيتين',nearest,dutyItem,employer,current};
+  return {allowed:true,message:`داخل نطاق البصمة - المسافة الآن ${nearest.distance.toFixed(1)} متر`,nearest,dutyItem,employer,current};
 }
 
 function setZoneAvailability(result){
@@ -477,34 +950,61 @@ function setZoneAvailability(result){
   renderPunchButtonState();
 }
 
-function startZoneWatch(){
+async function startZoneWatch(){
   stopZoneWatch();
   zoneAllowed = false;
   currentZoneMatch = null;
   zoneStatusMessage = 'جاري التحقق من نطاق البصمة...';
   renderPunchButtonState();
-  if(!navigator.geolocation){
+  if(!getCapacitorGeolocation() && !navigator.geolocation){
     setZoneAvailability({allowed:false,message:'الموقع غير مدعوم في هذا الجهاز'});
     return;
   }
-  zoneWatchId = navigator.geolocation.watchPosition(pos=>{
-    const current = normalizeGeoPosition(pos);
-    lastKnownLocation = current;
-    setZoneAvailability(resolveAllowedFingerprintPlace(current));
-  },()=>{
-    setZoneAvailability({allowed:false,message:'اسمح للتطبيق بالوصول إلى الموقع'});
-  },{
-    enableHighAccuracy:true,
-    timeout:15000,
-    maximumAge:2500
-  });
+  try{
+    const updateFromPosition = current=>{
+      lastKnownLocation = current;
+      setZoneAvailability(resolveAllowedFingerprintPlace(current));
+    };
+    zoneWatchHandle = await watchDevicePosition(current=>{
+      updateFromPosition(current);
+    },error=>{
+      setZoneAvailability({allowed:false,message:error?.message || 'اسمح للتطبيق بالوصول إلى الموقع'});
+    },{
+      enableHighAccuracy:true,
+      timeout:8000,
+      maximumAge:0
+    });
+    zoneRefreshTimer = setInterval(async ()=>{
+      if(zoneRefreshBusy) return;
+      zoneRefreshBusy = true;
+      try{
+        updateFromPosition(await getSingleDevicePosition({
+          enableHighAccuracy:true,
+          timeout:5500,
+          maximumAge:0
+        }));
+      } catch(error){
+        if(!lastKnownLocation || getLocationAgeMs(lastKnownLocation) > GPS_LAST_LOCATION_MAX_AGE_MS){
+          setZoneAvailability({allowed:false,message:error?.message || 'جاري تحديث موقعك...'});
+        }
+      } finally {
+        zoneRefreshBusy = false;
+      }
+    },GPS_FAST_REFRESH_MS);
+    getSingleDevicePosition({enableHighAccuracy:true,timeout:5500,maximumAge:0})
+      .then(updateFromPosition)
+      .catch(()=>{});
+  } catch(error){
+    setZoneAvailability({allowed:false,message:error?.message || 'اسمح للتطبيق بالوصول إلى الموقع'});
+  }
 }
 
 function stopZoneWatch(){
-  if(zoneWatchId !== null && navigator.geolocation){
-    navigator.geolocation.clearWatch(zoneWatchId);
-  }
-  zoneWatchId = null;
+  clearDevicePositionWatch(zoneWatchHandle);
+  clearInterval(zoneRefreshTimer);
+  zoneWatchHandle = null;
+  zoneRefreshTimer = null;
+  zoneRefreshBusy = false;
   zoneAllowed = false;
   currentZoneMatch = null;
   lastKnownLocation = null;
@@ -514,22 +1014,30 @@ function stopZoneWatch(){
 }
 
 async function ensureInsideEmployerZone(){
-  const current = await acquirePreciseLocation();
-  const result = resolveAllowedFingerprintPlace(current);
-  setZoneAvailability(result);
-  if(!result.allowed) throw new Error(result.message || 'أنت خارج نطاق البصمة');
-  const {nearest, dutyItem, employer} = result;
+  if(!zoneAllowed || !activeBarcodePlace || !isBarcodePlaceValidForCurrentDuty(activeBarcodePlace)){
+    resetBarcodeVerification();
+    throw new Error(zoneStatusMessage || 'امسح باركود الفرع أولاً');
+  }
+  const dutyItem = getCurrentDutyItem();
+  const employer = getCurrentEmployer(dutyItem);
+  const verification = await verifyBarcodePlaceLocation(activeBarcodePlace);
+  activeBarcodePlace = {...activeBarcodePlace,_locationVerification:verification};
   return {
-    lat:current.lat,
-    lng:current.lng,
-    accuracy:current.accuracy,
-    altitude:current.altitude,
-    altitudeAccuracy:current.altitudeAccuracy,
-    distance:Math.round(nearest.distance),
-    radiusMeters:nearest.radius,
-    toleranceMeters:Math.round(nearest.tolerance),
-    effectiveRadiusMeters:Math.round(nearest.effectiveRadius),
-    fingerprintPlaceId:nearest.place.id || '',
+    verificationMode:'barcode',
+    fingerprintPlaceId:activeBarcodePlace.id || '',
+    barcodeToken:activeBarcodePlace.barcodeToken || '',
+    barcodeTitle:activeBarcodePlace.title || '',
+    branchKey:activeBarcodePlace.branchKey || getCurrentDutyBranchKey(dutyItem),
+    branchName:branchNames[activeBarcodePlace.branchKey] || activeBarcodePlace.branchName || '',
+    lat:verification.lat,
+    lng:verification.lng,
+    accuracy:verification.accuracy,
+    altitude:verification.altitude,
+    altitudeAccuracy:verification.altitudeAccuracy,
+    distance:Math.round(verification.distance),
+    radiusMeters:verification.radiusMeters,
+    placeLat:verification.center.lat,
+    placeLng:verification.center.lng,
     employerId:employer?.id || dutyItem?.employerId || currentEmployee?.employerId || '',
     employerName:employer?.name || dutyItem?.employerName || currentEmployee?.employer || '',
     dutyFrom:dutyItem?.from || '',
@@ -558,12 +1066,14 @@ async function startPunch(){
   if(scanning || !currentEmployee) return;
   if(!zoneAllowed){
     document.getElementById('punchStatus').className = 'status err';
-    document.getElementById('punchStatus').textContent = zoneStatusMessage || 'أنت خارج نطاق البصمة';
+    document.getElementById('punchStatus').textContent = zoneStatusMessage || 'امسح الباركود أولاً';
     renderPunchButtonState();
     return;
   }
+  punchFeedbackMessage = '';
   const checkedIn = isCheckedIn();
   let type = checkedIn ? 'out' : 'in';
+  const dutyItem = getCurrentDutyItem();
   if(checkedIn && !canExitNormally() && !pendingExitPermissionImage){
     showExitPanel();
     return;
@@ -574,7 +1084,7 @@ async function startPunch(){
   button.classList.add('scanning');
   button.classList.remove('checked-in');
   status.className = 'status';
-  status.textContent = 'جاري التحقق من الموقع...';
+  status.textContent = 'جاري التحقق من الباركود...';
   const now = new Date();
   const date = formatDateInput(now);
   const time = formatTimeInput(now);
@@ -600,8 +1110,14 @@ async function startPunch(){
     punches.push({id:ref.key,...payload});
     pendingExitPermissionImage = '';
     hideExitPanel();
+    punchFeedbackMessage = getPunchSuccessMessage(type, now, dutyItem);
     status.className = 'status ok';
-    status.textContent = type === 'in' ? 'تم تسجيل بصمة الدخول' : 'تم تسجيل بصمة الخروج';
+    status.textContent = punchFeedbackMessage;
+    if(type === 'out'){
+      zoneAllowed = false;
+      activeBarcodePlace = null;
+      zoneStatusMessage = 'امسح الباركود لتسجيل بصمة جديدة';
+    }
     speakThanks();
   } catch(err){
     console.error(err);
@@ -618,26 +1134,32 @@ function renderPunchButtonState(){
   const button = document.getElementById('fingerprintButton');
   if(!button) return;
   const label = button.querySelector('.fingerprint-label');
+  const scanButton = document.getElementById('barcodeScanButton');
   const checkedIn = isCheckedIn();
-  button.disabled = scanning || !zoneAllowed;
+  button.disabled = scanning || barcodeLocationCheckBusy;
   button.classList.toggle('locked', !zoneAllowed);
   button.classList.toggle('ready', zoneAllowed && !scanning);
   button.classList.toggle('checked-in', checkedIn && zoneAllowed);
+  if(scanButton){
+    scanButton.classList.toggle('active', zoneAllowed);
+    scanButton.textContent = zoneAllowed ? 'تم مسح باركود الفرع' : 'مسح باركود الفرع';
+  }
   if(!zoneAllowed){
-    label.textContent = 'خارج النطاق';
+    label.textContent = 'امسح الباركود';
     const status = document.getElementById('punchStatus');
-    status.className = 'status err';
-    status.textContent = zoneStatusMessage;
+    const text = zoneStatusMessage || getExpectedBarcodeMessage();
+    status.className = punchFeedbackMessage ? 'status ok' : (text.startsWith('تم ') ? 'status ok' : 'status err');
+    status.textContent = punchFeedbackMessage || text;
     return;
   }
   if(checkedIn){
-    label.textContent = pendingExitPermissionImage ? 'بصمة خروج بإذن' : 'تم تسجيل الدخول';
+    label.textContent = pendingExitPermissionImage ? 'بصمة خروج بإذن' : 'بصمة خروج';
     document.getElementById('punchStatus').className = 'status ok';
-    document.getElementById('punchStatus').textContent = canExitNormally() ? 'يمكنك تسجيل بصمة الخروج الآن' : 'لا يمكن تسجيل الخروج إلا بإذن أو قبل نهاية الدوام ب 15 دقيقة';
+    document.getElementById('punchStatus').textContent = punchFeedbackMessage || (canExitNormally() ? 'اضغط مطولاً لتسجيل بصمة الخروج' : 'لا يمكن تسجيل الخروج إلا بإذن أو قبل نهاية الدوام ب 15 دقيقة');
   } else {
     label.textContent = 'ضع اصبعك هنا';
     document.getElementById('punchStatus').className = 'status ok';
-    document.getElementById('punchStatus').textContent = zoneStatusMessage;
+    document.getElementById('punchStatus').textContent = punchFeedbackMessage || zoneStatusMessage;
   }
 }
 
@@ -645,8 +1167,7 @@ function beginFingerprintHold(event){
   event.preventDefault();
   if(scanning || !currentEmployee) return;
   if(!zoneAllowed){
-    document.getElementById('punchStatus').className = 'status err';
-    document.getElementById('punchStatus').textContent = zoneStatusMessage || 'أنت خارج نطاق البصمة';
+    startBarcodeScan();
     return;
   }
   const checkedIn = isCheckedIn();
@@ -719,6 +1240,15 @@ function speakThanks(){
   utterance.rate = .95;
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
+}
+</script>
+<script>
+if('serviceWorker' in navigator && location.protocol === 'https:'){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(err=>{
+      console.warn('تعذر تسجيل خدمة تطبيق البصمة', err);
+    });
+  });
 }
 </script>
 </body>
