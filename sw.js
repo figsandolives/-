@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hrms-basma-pwa-v6';
+const CACHE_NAME = 'hrms-basma-pwa-v7';
 const APP_SHELL = [
   './',
   './index.html',
@@ -6,10 +6,10 @@ const APP_SHELL = [
   './hr-data-snapshot.js',
   './jsQR.js',
   './manifest.webmanifest',
-  './icons/icon-180.png',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-512-maskable.png'
+  './icon-180.png',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-512-maskable.png'
 ];
 
 self.addEventListener('install', event => {
