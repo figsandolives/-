@@ -9,9 +9,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="تطبيق البصمة">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/icon-180.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2310b981'/%3E%3Cpath d='M20 32c0-6.6 5.4-12 12-12s12 5.4 12 12' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M24 38c0-4.4 3.6-8 8-8s8 3.6 8 8' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3Cpath d='M32 40v8' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png">
+<link rel="apple-touch-icon-precomposed" sizes="180x180" href="./icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png">
 <script>
 try{
   if(localStorage.getItem('hrms-basma-employee-id')){
@@ -21,13 +23,15 @@ try{
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
   --bg:#f4f7fb;--panel:#ffffff;--panel2:#eef2f7;--text:#0f172a;--text2:#64748b;
   --accent:#2563eb;--green:#10b981;--red:#ef4444;--border:rgba(15,23,42,.1);
   --shadow:0 18px 45px rgba(15,23,42,.12);--radius:14px;
 }
-body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-touch-callout:none}
+button{appearance:none;-webkit-appearance:none;outline:none;border:none;-webkit-user-select:none;user-select:none}
+button:focus,button:focus-visible,button:active{outline:none!important}
 .screen{min-height:100vh;padding:22px;display:flex;align-items:center;justify-content:center}
 .hidden{display:none!important}
 .session-loading{display:none}
@@ -38,6 +42,7 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .session-loading-card h2{font-size:19px;font-weight:900;margin-bottom:6px}
 .session-loading-card p{font-size:13px;color:var(--text2)}
 .login-card,.app-shell{width:100%;max-width:430px;background:var(--panel);border:1px solid var(--border);border-radius:24px;box-shadow:var(--shadow);padding:24px}
+.login-tools{display:flex;justify-content:flex-start;margin-bottom:14px}
 .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}
 .brand-icon{width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#1d4ed8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:27px;font-weight:900}
 .brand h1{font-size:23px;font-weight:900}
@@ -55,9 +60,11 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .confirm-text{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
 .confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.top-actions{display:flex;align-items:center;gap:8px}
 .hello{font-size:21px;font-weight:900}
 .sub{font-size:13px;color:var(--text2);margin-top:2px}
 .logout{border:1px solid var(--border);background:var(--panel2);color:var(--text);border-radius:10px;padding:8px 12px;font-family:'Tajawal',sans-serif;font-weight:700}
+.lang-toggle{border:1px solid rgba(37,99,235,.24);background:rgba(37,99,235,.08);color:var(--accent);border-radius:10px;padding:8px 12px;font-family:'Tajawal',sans-serif;font-weight:900;cursor:pointer}
 .schedule-box{background:var(--panel2);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:18px}
 .schedule-title{font-size:15px;font-weight:900;margin-bottom:12px}
 .schedule-cards{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
@@ -67,7 +74,8 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 .task-text{font-size:12px;color:var(--text2);line-height:1.6}
 .empty{font-size:13px;color:var(--text2);padding:12px;text-align:center}
 .fingerprint-panel{position:relative;overflow:hidden;text-align:center;background:#fff;border:1px solid var(--border);border-radius:20px;padding:20px}
-.fingerprint-button{width:180px;height:180px;border-radius:50%;border:0;margin:10px auto 12px;background:radial-gradient(circle at 50% 35%,#cbd5e1,#64748b 58%,#475569);box-shadow:0 14px 34px rgba(100,116,139,.22);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;color:#fff;font-weight:900;font-size:16px;font-family:'Tajawal',sans-serif;touch-action:none;transition:background .25s,box-shadow .25s,transform .15s,opacity .2s}
+.fingerprint-button{width:180px;height:180px;border-radius:50%;border:0;margin:10px auto 12px;background:radial-gradient(circle at 50% 35%,#cbd5e1,#64748b 58%,#475569);box-shadow:0 14px 34px rgba(100,116,139,.22);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;color:#fff;font-weight:900;font-size:16px;font-family:'Tajawal',sans-serif;touch-action:none;outline:none!important;-webkit-tap-highlight-color:transparent;transition:background .25s,box-shadow .25s,transform .15s,opacity .2s}
+.fingerprint-button:focus,.fingerprint-button:focus-visible,.fingerprint-button:active{outline:none!important}
 .fingerprint-lines{position:absolute;inset:32px;border-radius:50%;opacity:.8;background:repeating-radial-gradient(circle at center,transparent 0 8px,rgba(255,255,255,.5) 9px 10px)}
 .scan-line{position:absolute;left:26px;right:26px;height:3px;background:#bbf7d0;box-shadow:0 0 18px #bbf7d0;top:20px;opacity:0}
 .fingerprint-button.scanning .scan-line{opacity:1;animation:scan 1.35s ease-in-out infinite}
@@ -123,23 +131,26 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 <section class="screen session-loading" id="sessionLoadingScreen">
   <div class="session-loading-card">
     <div class="session-spinner"></div>
-    <h2>جاري فتح حسابك</h2>
-    <p>نتأكد من الموظف المحفوظ على هذا الجهاز</p>
+    <h2 data-i18n="loadingTitle">جاري فتح حسابك</h2>
+    <p data-i18n="loadingText">نتأكد من الموظف المحفوظ على هذا الجهاز</p>
   </div>
 </section>
 
 <section class="screen" id="loginScreen">
   <div class="login-card">
+    <div class="login-tools">
+      <button class="lang-toggle" type="button" data-lang-toggle onclick="toggleLanguage()">English</button>
+    </div>
     <div class="brand">
       <div class="brand-icon">HR</div>
       <div>
-        <h1>تطبيق البصمة</h1>
-        <p>أدخل رمزك الخاص لتسجيل الحضور والانصراف</p>
+        <h1 data-i18n="appTitle">تطبيق البصمة</h1>
+        <p data-i18n="appSubtitle">أدخل رمزك الخاص لتسجيل الحضور والانصراف</p>
       </div>
     </div>
-    <label class="label" for="codeInput">رمز الدخول</label>
+    <label class="label" for="codeInput" data-i18n="codeLabel">رمز الدخول</label>
     <input class="input" id="codeInput" inputmode="numeric" autocomplete="one-time-code" oninput="normalizeCode(this)" onkeydown="if(event.key==='Enter') login()">
-    <button class="btn" onclick="login()">دخول</button>
+    <button class="btn" onclick="login()" data-i18n="loginButton">دخول</button>
     <div class="error" id="loginError"></div>
   </div>
 </section>
@@ -147,12 +158,12 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
 <div class="confirm-backdrop hidden" id="employeeConfirmModal">
   <div class="confirm-card">
     <div class="confirm-icon">✓</div>
-    <div class="confirm-title">تأكيد الموظف</div>
+    <div class="confirm-title" data-i18n="confirmTitle">تأكيد الموظف</div>
     <div class="confirm-name" id="confirmEmployeeName"></div>
-    <div class="confirm-text">هل هذا هو حسابك؟ بعد الموافقة سيتعرف التطبيق على هذا الجهاز دائماً إلى أن تضغط خروج.</div>
+    <div class="confirm-text" data-i18n="confirmText">هل هذا هو حسابك؟ بعد الموافقة سيتعرف التطبيق على هذا الجهاز دائماً إلى أن تضغط خروج.</div>
     <div class="confirm-actions">
-      <button class="mini-btn secondary" type="button" onclick="cancelLoginSelection()">لا</button>
-      <button class="mini-btn" type="button" onclick="confirmLoginSelection()">نعم، هذا أنا</button>
+      <button class="mini-btn secondary" type="button" onclick="cancelLoginSelection()" data-i18n="confirmNo">لا</button>
+      <button class="mini-btn" type="button" onclick="confirmLoginSelection()" data-i18n="confirmYes">نعم، هذا أنا</button>
     </div>
   </div>
 </div>
@@ -164,11 +175,14 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
         <div class="hello" id="helloName">مرحباً</div>
         <div class="sub" id="todayText"></div>
       </div>
-      <button class="logout" onclick="logout()">خروج</button>
+      <div class="top-actions">
+        <button class="lang-toggle" type="button" data-lang-toggle onclick="toggleLanguage()">English</button>
+        <button class="logout" onclick="logout()" data-i18n="logout">خروج</button>
+      </div>
     </div>
 
     <div class="schedule-box">
-      <div class="schedule-title">دوامك اليوم</div>
+      <div class="schedule-title" data-i18n="todaySchedule">دوامك اليوم</div>
       <div class="schedule-cards" id="scheduleCards"></div>
     </div>
 
@@ -178,8 +192,8 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
           <div class="analysis-orbit">
             <div class="analysis-scan"></div>
           </div>
-          <div class="analysis-title" id="barcodeAnalysisTitle">جاري تحليل الباركود</div>
-          <div class="analysis-text" id="barcodeAnalysisText">نتأكد من الفرع ومكان العمل</div>
+          <div class="analysis-title" id="barcodeAnalysisTitle" data-i18n="analysisTitle">جاري تحليل الباركود</div>
+          <div class="analysis-text" id="barcodeAnalysisText" data-i18n="analysisText">نتأكد من الفرع ومكان العمل</div>
         </div>
       </div>
       <div class="barcode-scanner hidden" id="barcodeScannerPanel">
@@ -188,25 +202,25 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min
           <div class="barcode-frame"></div>
         </div>
         <canvas class="barcode-reader-canvas" id="barcodeCanvas"></canvas>
-        <div class="barcode-reader-text" id="barcodeReaderText">وجّه الكاميرا نحو باركود الفرع</div>
-        <button class="mini-btn secondary" style="width:100%;margin-top:10px" onclick="stopBarcodeScan()">إغلاق الكاميرا</button>
+        <div class="barcode-reader-text" id="barcodeReaderText" data-i18n="pointCamera">وجّه الكاميرا نحو باركود الفرع</div>
+        <button class="mini-btn secondary" style="width:100%;margin-top:10px" onclick="stopBarcodeScan()" data-i18n="closeCamera">إغلاق الكاميرا</button>
       </div>
-      <button class="fingerprint-button locked" id="fingerprintButton" type="button" onpointerdown="beginFingerprintHold(event)" onpointerup="cancelFingerprintHold(event)" onpointerleave="cancelFingerprintHold(event)" onpointercancel="cancelFingerprintHold(event)" onclick="event.preventDefault()">
+      <button class="fingerprint-button locked" id="fingerprintButton" type="button" tabindex="-1" onpointerdown="beginFingerprintHold(event)" onpointerup="cancelFingerprintHold(event)" onpointerleave="cancelFingerprintHold(event)" onpointercancel="cancelFingerprintHold(event)" onclick="event.preventDefault();event.currentTarget.blur();return false">
         <span class="fingerprint-lines"></span>
         <span class="scan-line"></span>
-        <span class="fingerprint-label">ضع اصبعك هنا</span>
+        <span class="fingerprint-label" data-i18n="fingerprintLabel">ضع اصبعك هنا</span>
       </button>
-      <div class="status" id="punchStatus">جاهز لتسجيل البصمة</div>
+      <div class="status" id="punchStatus" data-i18n="readyStatus">جاهز لتسجيل البصمة</div>
       <div class="exit-panel" id="exitPanel">
-        <div class="exit-title" id="exitQuestion">هل لديك إذن خروج؟</div>
+        <div class="exit-title" id="exitQuestion" data-i18n="exitQuestion">هل لديك إذن خروج؟</div>
         <div class="exit-actions" id="exitQuestionActions">
-          <button class="mini-btn" onclick="showExitUpload()">نعم</button>
-          <button class="mini-btn secondary" onclick="hideExitPanel()">لا</button>
+          <button class="mini-btn" onclick="showExitUpload()" data-i18n="yes">نعم</button>
+          <button class="mini-btn secondary" onclick="hideExitPanel()" data-i18n="no">لا</button>
         </div>
         <div id="exitUpload" class="hidden">
-          <div class="exit-title">ارجو ارفاق صورة من اذن الخروج</div>
+          <div class="exit-title" data-i18n="uploadExitPermission">ارجو ارفاق صورة من اذن الخروج</div>
           <input class="permission-input" id="exitPermissionFile" type="file" accept="image/*" capture="environment">
-          <button class="mini-btn" onclick="attachExitPermission()">إرفاق</button>
+          <button class="mini-btn" onclick="attachExitPermission()" data-i18n="attach">إرفاق</button>
         </div>
       </div>
     </div>
@@ -304,7 +318,7 @@ let scanning = false;
 let pendingExitPermissionImage = '';
 let zoneWatchHandle = null;
 let zoneAllowed = false;
-let zoneStatusMessage = 'امسح باركود الفرع لتفعيل البصمة';
+let zoneStatusMessage = '';
 let currentZoneMatch = null;
 let lastKnownLocation = null;
 let lastAllowedZoneResult = null;
@@ -323,8 +337,14 @@ let punchSuccessResetTimer = null;
 let barcodeLocationCheckBusy = false;
 
 const dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
-const branchNames = {surra:'فرع حولي',abulhasania:'فرع أبو الحصانية',yarmouk:'فرع اليرموك',fixed:'دوام ثابت'};
+const branchNames = {
+  surra:{ar:'فرع حولي',en:'Hawally Branch'},
+  abulhasania:{ar:'فرع أبو الحصانية',en:'Abu Al Hasaniya Branch'},
+  yarmouk:{ar:'فرع اليرموك',en:'Yarmouk Branch'},
+  fixed:{ar:'دوام ثابت',en:'Fixed Shift'}
+};
 const SAVED_EMPLOYEE_STORAGE_KEY = 'hrms-basma-employee-id';
+const LANGUAGE_STORAGE_KEY = 'hrms-basma-language';
 const GPS_STRICT_MAX_ACCURACY = 35;
 const GPS_SAMPLE_TIMEOUT_MS = 6500;
 const GPS_MIN_SAMPLES = 2;
@@ -332,6 +352,259 @@ const GPS_FAST_REFRESH_MS = 2200;
 const GPS_LAST_LOCATION_MAX_AGE_MS = 12000;
 const GPS_STABILITY_GRACE_MS = 0;
 const GPS_WEAK_READING_LIMIT = 1;
+
+const translations = {
+  ar:{
+    appTitle:'تطبيق البصمة',
+    appSubtitle:'أدخل رمزك الخاص لتسجيل الحضور والانصراف',
+    loadingTitle:'جاري فتح حسابك',
+    loadingText:'نتأكد من الموظف المحفوظ على هذا الجهاز',
+    codeLabel:'رمز الدخول',
+    loginButton:'دخول',
+    logout:'خروج',
+    confirmTitle:'تأكيد الموظف',
+    confirmText:'هل هذا هو حسابك؟ بعد الموافقة سيتعرف التطبيق على هذا الجهاز دائماً إلى أن تضغط خروج.',
+    confirmNo:'لا',
+    confirmYes:'نعم، هذا أنا',
+    todaySchedule:'دوامك اليوم',
+    analysisTitle:'جاري تحليل الباركود',
+    analysisText:'نتأكد من الفرع ومكان العمل',
+    pointCamera:'وجّه الكاميرا نحو باركود الفرع',
+    closeCamera:'إغلاق الكاميرا',
+    fingerprintLabel:'ضع اصبعك هنا',
+    readyStatus:'جاهز لتسجيل البصمة',
+    exitQuestion:'هل لديك إذن خروج؟',
+    yes:'نعم',
+    no:'لا',
+    uploadExitPermission:'ارجو ارفاق صورة من اذن الخروج',
+    attach:'إرفاق',
+    langToggle:'English',
+    employeeFallback:'موظفنا',
+    employeeConfirmFallback:'موظف',
+    loginCancelled:'تم إلغاء الدخول',
+    invalidCode:'رمز الدخول غير صحيح',
+    employeeMissing:'لم يتم العثور على بيانات الموظف',
+    noDutyToday:'لا يوجد دوام مسجل لك اليوم',
+    noTasks:'بدون مهام محددة',
+    to:'إلى',
+    am:'ص',
+    pm:'م',
+    dateLocale:'ar-KW',
+    branchFallback:'فرع الدوام',
+    noBarcodeForBranch:({branch})=>`لم يتم إنشاء باركود لهذا الفرع: ${branch}`,
+    scanBranchBarcode:({branch})=>`امسح باركود ${branch} لتفعيل البصمة`,
+    scanBarcodeToEnable:'امسح باركود الفرع لتفعيل البصمة',
+    cameraUnsupported:'الكاميرا غير مدعومة على هذا الجهاز',
+    allowCamera:'اسمح للتطبيق باستخدام الكاميرا لمسح الباركود',
+    keepCameraSteady:'قرّب الكاميرا من الباركود وثبّت الصورة',
+    wrongBarcode:'هذا الباركود لا يخص فرع دوامك',
+    wrongBarcodeStatus:'الباركود غير صحيح لهذا الفرع',
+    analyzingBarcode:'جاري تحليل الباركود والتأكد من مكان العمل...',
+    insideWorkplace:({distance})=>`داخل مكان العمل - المسافة ${distance} متر`,
+    barcodeOkOut:'تم تحليل الباركود بنجاح، جاري تطبيق بصمة الخروج...',
+    barcodeOkIn:'تم تحليل الباركود بنجاح، جاري تطبيق بصمة الحضور...',
+    notAtWork:'أنت لست في مكان العمل',
+    missingBarcodeLocation:'لم يتم تحديد إحداثيات وحدود لهذا الباركود',
+    outsideBarcodeZone:({distance,radius})=>`أنت لست في مكان العمل - المسافة ${distance} متر والحد ${radius} متر`,
+    locationUnsupported:'الموقع غير مدعوم في هذا الجهاز',
+    preciseLocationFailed:'تعذر التقاط موقع دقيق',
+    allowLocation:'اسمح للتطبيق بالوصول إلى الموقع',
+    locationServiceFailed:'تعذر تشغيل خدمة الموقع',
+    weakGps:({accuracy})=>`دقة GPS ضعيفة الآن (${accuracy} متر). انتظر ثواني حتى تثبت القراءة`,
+    noPlaceLinked:'لم يتم ربط مكان بصمة لهذه الجهة',
+    invalidPlace:'مكان البصمة غير مكتمل',
+    outsideZone:({outsideBy,distance,radius})=>`أنت خارج حدود البصمة بفارق ${outsideBy} متر - المسافة الآن ${distance} متر والحد ${radius} متر`,
+    insideZone:({distance})=>`داخل نطاق البصمة - المسافة الآن ${distance} متر`,
+    insideZoneShort:'داخل نطاق البصمة',
+    checkingZone:'جاري التحقق من نطاق البصمة...',
+    temporaryWeakGps:({count,limit})=>`داخل النطاق - دقة GPS انخفضت مؤقتاً (${count}/${limit})`,
+    weakGpsNow:'دقة GPS ضعيفة الآن',
+    updatingLocation:'جاري تحديث موقعك...',
+    scanBarcodeFirst:'امسح باركود الفرع أولاً',
+    scanBarcodeStatus:'امسح الباركود أولاً',
+    attachExitThenScan:'ارفق إذن الخروج ثم امسح الباركود لتسجيل بصمة الخروج',
+    checkingBarcode:'جاري التحقق من الباركود...',
+    approvingPunch:({type})=>`جاري اعتماد بصمة ${type === 'out' ? 'الخروج' : 'الحضور'}...`,
+    analyzingFingerprint:'جاري تحليل البصمة...',
+    scanNewBarcode:'امسح الباركود لتسجيل بصمة جديدة',
+    cannotPunch:'تعذر تسجيل البصمة',
+    barcodeScanned:'تم مسح باركود الفرع',
+    scanBranch:'مسح باركود الفرع',
+    scanBarcode:'امسح الباركود',
+    scanExitBarcode:'امسح باركود الخروج',
+    scanExitStatus:'امسح الباركود لتسجيل بصمة الخروج',
+    exitBlocked:'لا يمكن تسجيل الخروج إلا بإذن أو قبل نهاية الدوام ب 15 دقيقة',
+    holdTwoSeconds:'استمر ثانيتين',
+    keepHolding:'استمر بالضغط لتسجيل البصمة',
+    attachExitFirst:'ارفق صورة إذن الخروج أولاً',
+    exitAttached:'تم إرفاق إذن الخروج، امسح الباركود لتسجيل بصمة الخروج',
+    punchInThanks:({time,late})=>`شكراً لك تمت بصمة الدخول في الساعة ${time}${late ? ` - تأخير ${late} دقائق` : ''}`,
+    punchOutThanks:({time})=>`شكراً لك تمت بصمة الخروج في الساعة ${time}`,
+    punchInTitle:'تم تطبيق بصمة الحضور',
+    punchOutTitle:'تم تطبيق بصمة الخروج',
+    timeDetails:({time})=>`الوقت: ${time}`,
+    timeLateDetails:({time,late})=>`الوقت: ${time} - تأخير ${late} دقائق`,
+    speechThanks:({name})=>`شكراً لك يا ${name}`
+  },
+  en:{
+    appTitle:'Fingerprint App',
+    appSubtitle:'Enter your personal code to record attendance and departure',
+    loadingTitle:'Opening Your Account',
+    loadingText:'Checking the employee saved on this device',
+    codeLabel:'Login Code',
+    loginButton:'Sign In',
+    logout:'Logout',
+    confirmTitle:'Confirm Employee',
+    confirmText:'Is this your account? After approval, this device will remember you until you log out.',
+    confirmNo:'No',
+    confirmYes:'Yes, This Is Me',
+    todaySchedule:'Today\'s Schedule',
+    analysisTitle:'Analyzing Barcode',
+    analysisText:'Checking the branch and workplace',
+    pointCamera:'Point the camera at the branch barcode',
+    closeCamera:'Close Camera',
+    fingerprintLabel:'Place your finger here',
+    readyStatus:'Ready to record fingerprint',
+    exitQuestion:'Do you have an exit permission?',
+    yes:'Yes',
+    no:'No',
+    uploadExitPermission:'Please attach a photo of the exit permission',
+    attach:'Attach',
+    langToggle:'العربية',
+    employeeFallback:'Employee',
+    employeeConfirmFallback:'Employee',
+    loginCancelled:'Login cancelled',
+    invalidCode:'Invalid login code',
+    employeeMissing:'Employee data was not found',
+    noDutyToday:'No schedule registered for today',
+    noTasks:'No tasks assigned',
+    to:'to',
+    am:'AM',
+    pm:'PM',
+    dateLocale:'en-US',
+    branchFallback:'Work Branch',
+    noBarcodeForBranch:({branch})=>`No barcode has been created for this branch: ${branch}`,
+    scanBranchBarcode:({branch})=>`Scan ${branch} barcode to enable fingerprint`,
+    scanBarcodeToEnable:'Scan the branch barcode to enable fingerprint',
+    cameraUnsupported:'Camera is not supported on this device',
+    allowCamera:'Allow the app to use the camera to scan the barcode',
+    keepCameraSteady:'Move closer to the barcode and keep the camera steady',
+    wrongBarcode:'This barcode does not belong to your scheduled branch',
+    wrongBarcodeStatus:'Invalid barcode for this branch',
+    analyzingBarcode:'Analyzing barcode and checking workplace...',
+    insideWorkplace:({distance})=>`Inside workplace - distance ${distance} m`,
+    barcodeOkOut:'Barcode analyzed successfully, recording check-out...',
+    barcodeOkIn:'Barcode analyzed successfully, recording check-in...',
+    notAtWork:'You are not at the workplace',
+    missingBarcodeLocation:'Coordinates and boundary are not set for this barcode',
+    outsideBarcodeZone:({distance,radius})=>`You are not at the workplace - distance ${distance} m, limit ${radius} m`,
+    locationUnsupported:'Location is not supported on this device',
+    preciseLocationFailed:'Could not capture a precise location',
+    allowLocation:'Allow the app to access location',
+    locationServiceFailed:'Could not start the location service',
+    weakGps:({accuracy})=>`GPS accuracy is weak now (${accuracy} m). Wait a few seconds for the reading to stabilize`,
+    noPlaceLinked:'No fingerprint place is linked to this workplace',
+    invalidPlace:'Fingerprint place is incomplete',
+    outsideZone:({outsideBy,distance,radius})=>`Outside fingerprint boundary by ${outsideBy} m - current distance ${distance} m, limit ${radius} m`,
+    insideZone:({distance})=>`Inside fingerprint zone - current distance ${distance} m`,
+    insideZoneShort:'Inside fingerprint zone',
+    checkingZone:'Checking fingerprint zone...',
+    temporaryWeakGps:({count,limit})=>`Inside zone - GPS accuracy dropped temporarily (${count}/${limit})`,
+    weakGpsNow:'GPS accuracy is weak now',
+    updatingLocation:'Updating your location...',
+    scanBarcodeFirst:'Scan the branch barcode first',
+    scanBarcodeStatus:'Scan the barcode first',
+    attachExitThenScan:'Attach exit permission, then scan the barcode to record check-out',
+    checkingBarcode:'Checking barcode...',
+    approvingPunch:({type})=>`Recording ${type === 'out' ? 'check-out' : 'check-in'}...`,
+    analyzingFingerprint:'Analyzing fingerprint...',
+    scanNewBarcode:'Scan the barcode to record a new fingerprint',
+    cannotPunch:'Could not record fingerprint',
+    barcodeScanned:'Branch barcode scanned',
+    scanBranch:'Scan Branch Barcode',
+    scanBarcode:'Scan Barcode',
+    scanExitBarcode:'Scan Check-out Barcode',
+    scanExitStatus:'Scan the barcode to record check-out',
+    exitBlocked:'Check-out is allowed only with permission or 15 minutes before shift end',
+    holdTwoSeconds:'Keep holding for 2 seconds',
+    keepHolding:'Keep holding to record fingerprint',
+    attachExitFirst:'Attach an exit permission photo first',
+    exitAttached:'Exit permission attached. Scan the barcode to record check-out',
+    punchInThanks:({time,late})=>`Thank you. Check-in recorded at ${time}${late ? ` - ${late} minutes late` : ''}`,
+    punchOutThanks:({time})=>`Thank you. Check-out recorded at ${time}`,
+    punchInTitle:'Check-in Recorded',
+    punchOutTitle:'Check-out Recorded',
+    timeDetails:({time})=>`Time: ${time}`,
+    timeLateDetails:({time,late})=>`Time: ${time} - ${late} minutes late`,
+    speechThanks:({name})=>`Thank you, ${name}`
+  }
+};
+
+let appLang = getSavedLanguage();
+zoneStatusMessage = tr('scanBarcodeToEnable');
+
+function getSavedLanguage(){
+  try{
+    return localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'en' ? 'en' : 'ar';
+  } catch(_err){
+    return 'ar';
+  }
+}
+
+function tr(key, params={}){
+  const dict = translations[appLang] || translations.ar;
+  const value = key.split('.').reduce((payload,part)=>payload?.[part], dict);
+  if(typeof value === 'function') return value(params);
+  return value ?? key;
+}
+
+function applyLanguage(){
+  document.documentElement.lang = appLang;
+  document.documentElement.dir = appLang === 'ar' ? 'rtl' : 'ltr';
+  document.title = tr('appTitle');
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', tr('appTitle'));
+  document.querySelectorAll('[data-i18n]').forEach(element=>{
+    element.textContent = tr(element.dataset.i18n);
+  });
+  document.querySelectorAll('[data-lang-toggle]').forEach(element=>{
+    element.textContent = tr('langToggle');
+  });
+}
+
+function toggleLanguage(){
+  appLang = appLang === 'ar' ? 'en' : 'ar';
+  try{
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, appLang);
+  } catch(_err){}
+  applyLanguage();
+  if(currentEmployee) renderApp();
+  else renderPunchButtonState();
+}
+
+function getBranchName(branchKey){
+  const branch = branchNames[branchKey];
+  if(!branch) return branchKey || '';
+  return branch[appLang] || branch.ar || branchKey;
+}
+
+function translateTask(task){
+  if(appLang === 'ar') return task;
+  const taskMap = {
+    'تصميم':'Design',
+    'مصمم':'Designer',
+    'مبيعات':'Sales',
+    'محاسب':'Accountant',
+    'تنظيف':'Cleaning',
+    'عامل تنظيف/أدوات مطبخ':'Cleaner / Kitchen Helper',
+    'سائق سيارة خصوصي':'Private Driver',
+    'صانع معجنات وفطائر':'Pastry and Pies Maker',
+    'بائع طعام':'Food Seller',
+    'بائع حلويات':'Sweets Seller',
+    'باذل طعام':'Food Server',
+    'بدون مهام محددة':'No tasks assigned'
+  };
+  return taskMap[task] || task;
+}
 
 function getCapacitorGeolocation(){
   return window.Capacitor?.Plugins?.Geolocation || window.Capacitor?.Geolocation || null;
@@ -343,10 +616,10 @@ async function ensureNativeLocationPermission(){
   const status = await geolocation.checkPermissions().catch(()=>null);
   if(status?.location === 'granted' || status?.coarseLocation === 'granted') return;
   const requested = await geolocation.requestPermissions().catch(error=>{
-    throw new Error(error?.message || 'اسمح للتطبيق بالوصول إلى الموقع');
+    throw new Error(error?.message || tr('allowLocation'));
   });
   if(requested?.location !== 'granted' && requested?.coarseLocation !== 'granted'){
-    throw new Error('اسمح للتطبيق بالوصول إلى الموقع');
+    throw new Error(tr('allowLocation'));
   }
 }
 
@@ -395,16 +668,17 @@ function formatTimeInputWithSeconds(date=new Date()){
 }
 
 function formatExactTimeValue(date=new Date()){
-  return date.toLocaleTimeString('ar-KW',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
+  return date.toLocaleTimeString(tr('dateLocale'),{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
 }
 
 function formatTimeValue(time){
   const [hourPart,minutePart='0'] = String(time).split(':');
   const hour = parseInt(hourPart,10);
   const minute = parseInt(minutePart,10);
-  const suffix = hour < 12 ? 'ص' : 'م';
+  const suffix = hour < 12 ? tr('am') : tr('pm');
   const displayHour = hour % 12 || 12;
-  return minute ? `${displayHour}:${String(minute).padStart(2,'0')}${suffix}` : `${displayHour}${suffix}`;
+  const value = minute ? `${displayHour}:${String(minute).padStart(2,'0')}` : String(displayHour);
+  return appLang === 'ar' ? `${value}${suffix}` : `${value} ${suffix}`;
 }
 
 function wait(ms){
@@ -468,7 +742,7 @@ function restoreSavedEmployeeSession(){
 
 function showEmployeeConfirmation(employee){
   pendingLoginEmployee = employee;
-  document.getElementById('confirmEmployeeName').textContent = employee.name || 'موظف';
+  document.getElementById('confirmEmployeeName').textContent = employee.name || tr('employeeConfirmFallback');
   document.getElementById('employeeConfirmModal').classList.remove('hidden');
 }
 
@@ -483,7 +757,7 @@ function cancelLoginSelection(){
   pendingLoginEmployee = null;
   currentEmployee = null;
   document.getElementById('employeeConfirmModal').classList.add('hidden');
-  document.getElementById('loginError').textContent = 'تم إلغاء الدخول';
+  document.getElementById('loginError').textContent = tr('loginCancelled');
   document.getElementById('codeInput').value = '';
 }
 
@@ -491,12 +765,12 @@ function login(){
   const code = normalizeDigits(document.getElementById('codeInput').value).replace(/[^0-9]/g,'');
   const match = Object.entries(hrData.fingerprintCodes || {}).find(([,savedCode])=>String(savedCode) === code);
   if(!match){
-    document.getElementById('loginError').textContent = 'رمز الدخول غير صحيح';
+    document.getElementById('loginError').textContent = tr('invalidCode');
     return;
   }
   const employee = hrData.employees?.[match[0]];
   if(!employee){
-    document.getElementById('loginError').textContent = 'لم يتم العثور على بيانات الموظف';
+    document.getElementById('loginError').textContent = tr('employeeMissing');
     return;
   }
   showEmployeeConfirmation(employee);
@@ -573,9 +847,9 @@ function getPunchSuccessMessage(type, date, dutyItem){
   const timeText = formatTimeValue(formatTimeInput(date));
   if(type === 'in'){
     const late = getLateMinutes(date, dutyItem);
-    return `شكراً لك تمت بصمة الدخول في الساعة ${timeText}${late ? ` - تأخير ${late} دقائق` : ''}`;
+    return tr('punchInThanks',{time:timeText,late});
   }
-  return `شكراً لك تمت بصمة الخروج في الساعة ${timeText}`;
+  return tr('punchOutThanks',{time:timeText});
 }
 
 function getPunchSuccessView(type, date, dutyItem){
@@ -583,13 +857,13 @@ function getPunchSuccessView(type, date, dutyItem){
   if(type === 'in'){
     const late = getLateMinutes(date, dutyItem);
     return {
-      title:'تم تطبيق بصمة الحضور',
-      details:late ? `الوقت: ${exactTime} - تأخير ${late} دقائق` : `الوقت: ${exactTime}`
+      title:tr('punchInTitle'),
+      details:late ? tr('timeLateDetails',{time:exactTime,late}) : tr('timeDetails',{time:exactTime})
     };
   }
   return {
-    title:'تم تطبيق بصمة الخروج',
-    details:`الوقت: ${exactTime}`
+    title:tr('punchOutTitle'),
+    details:tr('timeDetails',{time:exactTime})
   };
 }
 
@@ -659,11 +933,11 @@ function isBarcodePlaceValidForCurrentDuty(place){
 
 function getExpectedBarcodeMessage(){
   const dutyItem = getCurrentDutyItem();
-  if(!dutyItem) return 'لا يوجد دوام مسجل لك اليوم';
+  if(!dutyItem) return tr('noDutyToday');
   const branchKey = getCurrentDutyBranchKey(dutyItem);
-  const branchName = branchNames[branchKey] || dutyItem.employerName || currentEmployee?.employer || 'فرع الدوام';
-  if(!getFingerprintBarcodePlacesForDuty(dutyItem).length) return `لم يتم إنشاء باركود لهذا الفرع: ${branchName}`;
-  return `امسح باركود ${branchName} لتفعيل البصمة`;
+  const branchName = getBranchName(branchKey) || dutyItem.employerName || currentEmployee?.employer || tr('branchFallback');
+  if(!getFingerprintBarcodePlacesForDuty(dutyItem).length) return tr('noBarcodeForBranch',{branch:branchName});
+  return tr('scanBranchBarcode',{branch:branchName});
 }
 
 function resetBarcodeVerification(message=''){
@@ -675,7 +949,7 @@ function resetBarcodeVerification(message=''){
   renderPunchButtonState();
 }
 
-function showBarcodeAnalysis(title='جاري تحليل الباركود', text='نتأكد من الفرع ومكان العمل'){
+function showBarcodeAnalysis(title=tr('analysisTitle'), text=tr('analysisText')){
   const panel = document.getElementById('barcodeAnalysis');
   document.getElementById('barcodeAnalysisTitle').textContent = title;
   document.getElementById('barcodeAnalysisText').textContent = text;
@@ -707,9 +981,9 @@ async function startBarcodeScan(){
   const video = document.getElementById('barcodeVideo');
   const readerText = document.getElementById('barcodeReaderText');
   panel?.classList.remove('hidden');
-  if(readerText) readerText.textContent = 'وجّه الكاميرا نحو باركود الفرع';
+  if(readerText) readerText.textContent = tr('pointCamera');
   try{
-    if(!navigator.mediaDevices?.getUserMedia) throw new Error('الكاميرا غير مدعومة على هذا الجهاز');
+    if(!navigator.mediaDevices?.getUserMedia) throw new Error(tr('cameraUnsupported'));
     barcodeScanStream = await navigator.mediaDevices.getUserMedia({
       video:{
         facingMode:{ideal:'environment'},
@@ -723,8 +997,8 @@ async function startBarcodeScan(){
     scanBarcodeFrame();
   } catch(err){
     console.error(err);
-    if(readerText) readerText.textContent = err.message || 'اسمح للتطبيق باستخدام الكاميرا';
-    zoneStatusMessage = 'اسمح للتطبيق باستخدام الكاميرا لمسح الباركود';
+    if(readerText) readerText.textContent = err.message || tr('allowCamera');
+    zoneStatusMessage = tr('allowCamera');
     renderPunchButtonState();
   }
 }
@@ -758,7 +1032,7 @@ function scanBarcodeFrame(){
       handleScannedBarcode(code.data);
       return;
     }
-    if(readerText) readerText.textContent = 'قرّب الكاميرا من الباركود وثبّت الصورة';
+    if(readerText) readerText.textContent = tr('keepCameraSteady');
   }
   barcodeScanFrame = requestAnimationFrame(scanBarcodeFrame);
 }
@@ -767,10 +1041,10 @@ async function handleScannedBarcode(value){
   const token = parseFingerprintBarcode(value);
   const matchedPlace = getFingerprintBarcodePlacesForDuty().find(place=>place.barcodeToken === token || place.barcodeValue === value);
   if(!token || !matchedPlace){
-    document.getElementById('barcodeReaderText').textContent = 'هذا الباركود لا يخص فرع دوامك';
+    document.getElementById('barcodeReaderText').textContent = tr('wrongBarcode');
     zoneAllowed = false;
     activeBarcodePlace = null;
-    zoneStatusMessage = 'الباركود غير صحيح لهذا الفرع';
+    zoneStatusMessage = tr('wrongBarcodeStatus');
     renderPunchButtonState();
     barcodeScanFrame = requestAnimationFrame(scanBarcodeFrame);
     return;
@@ -779,7 +1053,7 @@ async function handleScannedBarcode(value){
   barcodeLocationCheckBusy = true;
   zoneAllowed = false;
   activeBarcodePlace = null;
-  zoneStatusMessage = 'جاري تحليل الباركود والتأكد من مكان العمل...';
+  zoneStatusMessage = tr('analyzingBarcode');
   showBarcodeAnalysis();
   renderPunchButtonState();
   try{
@@ -789,19 +1063,17 @@ async function handleScannedBarcode(value){
     ]);
     activeBarcodePlace = {...matchedPlace,_locationVerification:verification};
     zoneAllowed = true;
-    zoneStatusMessage = `داخل مكان العمل - المسافة ${verification.distance.toFixed(1)} متر`;
+    zoneStatusMessage = tr('insideWorkplace',{distance:verification.distance.toFixed(1)});
     hideBarcodeAnalysis();
     barcodeLocationCheckBusy = false;
     renderPunchButtonState();
-    zoneStatusMessage = isCheckedIn()
-      ? 'تم تحليل الباركود بنجاح، جاري تطبيق بصمة الخروج...'
-      : 'تم تحليل الباركود بنجاح، جاري تطبيق بصمة الحضور...';
+    zoneStatusMessage = isCheckedIn() ? tr('barcodeOkOut') : tr('barcodeOkIn');
     await startPunch({fromBarcode:true});
   } catch(err){
     console.error(err);
     activeBarcodePlace = null;
     zoneAllowed = false;
-    zoneStatusMessage = err.message || 'أنت لست في مكان العمل';
+    zoneStatusMessage = err.message || tr('notAtWork');
   } finally {
     barcodeLocationCheckBusy = false;
     hideBarcodeAnalysis();
@@ -845,7 +1117,7 @@ async function verifyBarcodePlaceLocation(place){
   const center = getBarcodePlaceCenter(place);
   const radius = Number(place?.radiusMeters) || 0;
   if(!center || radius <= 0){
-    throw new Error('لم يتم تحديد إحداثيات وحدود لهذا الباركود');
+    throw new Error(tr('missingBarcodeLocation'));
   }
   const current = await acquirePreciseLocation({
     timeoutMs:GPS_SAMPLE_TIMEOUT_MS,
@@ -854,7 +1126,7 @@ async function verifyBarcodePlaceLocation(place){
   });
   const distance = distanceMeters(current,center);
   if(distance > radius){
-    throw new Error(`أنت لست في مكان العمل - المسافة ${distance.toFixed(1)} متر والحد ${radius} متر`);
+    throw new Error(tr('outsideBarcodeZone',{distance:distance.toFixed(1),radius}));
   }
   return {
     ...current,
@@ -899,7 +1171,7 @@ async function watchDevicePosition(onPosition,onError,options={}){
     });
     return {source:'native',id};
   }
-  if(!navigator.geolocation) throw new Error('الموقع غير مدعوم في هذا الجهاز');
+  if(!navigator.geolocation) throw new Error(tr('locationUnsupported'));
   const id = navigator.geolocation.watchPosition(
     position=>onPosition(normalizeGeoPosition(position,'browser')),
     error=>onError?.(error),
@@ -919,7 +1191,7 @@ async function getSingleDevicePosition(options={}){
     });
     return normalizeGeoPosition(position,'native');
   }
-  if(!navigator.geolocation) throw new Error('الموقع غير مدعوم في هذا الجهاز');
+  if(!navigator.geolocation) throw new Error(tr('locationUnsupported'));
   return new Promise((resolve,reject)=>{
     navigator.geolocation.getCurrentPosition(
       position=>resolve(normalizeGeoPosition(position,'browser')),
@@ -977,7 +1249,7 @@ function combineLocationSamples(samples){
 function acquirePreciseLocation({timeoutMs=GPS_SAMPLE_TIMEOUT_MS,minSamples=GPS_MIN_SAMPLES,targetAccuracy=GPS_STRICT_MAX_ACCURACY}={}){
   return new Promise((resolve,reject)=>{
     if(!getCapacitorGeolocation() && !navigator.geolocation){
-      reject(new Error('الموقع غير مدعوم في هذا الجهاز'));
+      reject(new Error(tr('locationUnsupported')));
       return;
     }
     const samples = [];
@@ -993,7 +1265,7 @@ function acquirePreciseLocation({timeoutMs=GPS_SAMPLE_TIMEOUT_MS,minSamples=GPS_
     const timer = setTimeout(()=>{
       const combined = combineLocationSamples(samples);
       if(combined) finish(resolve, combined);
-      else finish(reject, new Error('تعذر التقاط موقع دقيق'));
+      else finish(reject, new Error(tr('preciseLocationFailed')));
     },timeoutMs);
     watchDevicePosition(position=>{
       samples.push(position);
@@ -1006,7 +1278,7 @@ function acquirePreciseLocation({timeoutMs=GPS_SAMPLE_TIMEOUT_MS,minSamples=GPS_
         const combined = combineLocationSamples(samples);
         finish(resolve, combined);
       } else {
-        finish(reject, new Error(error?.message || 'اسمح للتطبيق بالوصول إلى الموقع'));
+        finish(reject, new Error(error?.message || tr('allowLocation')));
       }
     },{
       enableHighAccuracy:true,
@@ -1016,7 +1288,7 @@ function acquirePreciseLocation({timeoutMs=GPS_SAMPLE_TIMEOUT_MS,minSamples=GPS_
       watchHandle = handle;
       if(settled) clearDevicePositionWatch(watchHandle);
     }).catch(error=>{
-      finish(reject, new Error(error?.message || 'تعذر تشغيل خدمة الموقع'));
+      finish(reject, new Error(error?.message || tr('locationServiceFailed')));
     });
   });
 }
@@ -1024,14 +1296,14 @@ function acquirePreciseLocation({timeoutMs=GPS_SAMPLE_TIMEOUT_MS,minSamples=GPS_
 function resolveAllowedFingerprintPlace(current){
   const currentAccuracy = getLocationAccuracyMeters(current?.accuracy);
   if(!currentAccuracy || currentAccuracy > GPS_STRICT_MAX_ACCURACY){
-    return {allowed:false,reason:'weak-gps',message:`دقة GPS ضعيفة الآن (${Number(currentAccuracy || 0).toFixed(1)} متر). انتظر ثواني حتى تثبت القراءة`,current};
+    return {allowed:false,reason:'weak-gps',message:tr('weakGps',{accuracy:Number(currentAccuracy || 0).toFixed(1)}),current};
   }
   const items = getTodayScheduleItems();
-  if(!items.length) return {allowed:false,reason:'no-duty',message:'لا يوجد دوام مسجل لك اليوم'};
+  if(!items.length) return {allowed:false,reason:'no-duty',message:tr('noDutyToday')};
   const dutyItem = getCurrentDutyItem();
   const employer = getCurrentEmployer(dutyItem);
   const places = getFingerprintPlacesForEmployer(employer, dutyItem);
-  if(!places.length) return {allowed:false,reason:'no-place',message:'لم يتم ربط مكان بصمة لهذه الجهة'};
+  if(!places.length) return {allowed:false,reason:'no-place',message:tr('noPlaceLinked')};
   const nearest = places
     .map(place=>{
       const center = {lat:Number(place.location?.lat),lng:Number(place.location?.lng)};
@@ -1060,20 +1332,20 @@ function resolveAllowedFingerprintPlace(current){
     })
     .sort((a,b)=>a.distance-b.distance)[0];
   if(!nearest || !Number.isFinite(nearest.distance)){
-    return {allowed:false,reason:'invalid-place',message:'مكان البصمة غير مكتمل'};
+    return {allowed:false,reason:'invalid-place',message:tr('invalidPlace')};
   }
   if(nearest.distance > nearest.effectiveRadius){
     return {
       allowed:false,
       reason:'outside-zone',
-      message:`أنت خارج حدود البصمة بفارق ${Math.round(nearest.outsideBy)} متر - المسافة الآن ${nearest.distance.toFixed(1)} متر والحد ${nearest.radius} متر`,
+      message:tr('outsideZone',{outsideBy:Math.round(nearest.outsideBy),distance:nearest.distance.toFixed(1),radius:nearest.radius}),
       nearest,
       dutyItem,
       employer,
       current
     };
   }
-  return {allowed:true,message:`داخل نطاق البصمة - المسافة الآن ${nearest.distance.toFixed(1)} متر`,nearest,dutyItem,employer,current};
+  return {allowed:true,message:tr('insideZone',{distance:nearest.distance.toFixed(1)}),nearest,dutyItem,employer,current};
 }
 
 function setZoneAvailability(result){
@@ -1083,7 +1355,7 @@ function setZoneAvailability(result){
     lastAllowedZoneAt = now;
     weakGpsReadingCount = 0;
     zoneAllowed = true;
-    zoneStatusMessage = result.message || 'داخل نطاق البصمة';
+    zoneStatusMessage = result.message || tr('insideZoneShort');
     currentZoneMatch = result;
     renderPunchButtonState();
     return;
@@ -1092,15 +1364,15 @@ function setZoneAvailability(result){
     weakGpsReadingCount += 1;
     zoneAllowed = weakGpsReadingCount < GPS_WEAK_READING_LIMIT;
     zoneStatusMessage = zoneAllowed
-      ? `داخل النطاق - دقة GPS انخفضت مؤقتاً (${weakGpsReadingCount}/${GPS_WEAK_READING_LIMIT})`
-      : (result.message || 'دقة GPS ضعيفة الآن');
+      ? tr('temporaryWeakGps',{count:weakGpsReadingCount,limit:GPS_WEAK_READING_LIMIT})
+      : (result.message || tr('weakGpsNow'));
     currentZoneMatch = zoneAllowed ? lastAllowedZoneResult : result;
     renderPunchButtonState();
     return;
   }
   weakGpsReadingCount = 0;
   zoneAllowed = false;
-  zoneStatusMessage = result?.message || 'جاري التحقق من نطاق البصمة...';
+  zoneStatusMessage = result?.message || tr('checkingZone');
   currentZoneMatch = result || null;
   renderPunchButtonState();
 }
@@ -1109,10 +1381,10 @@ async function startZoneWatch(){
   stopZoneWatch();
   zoneAllowed = false;
   currentZoneMatch = null;
-  zoneStatusMessage = 'جاري التحقق من نطاق البصمة...';
+  zoneStatusMessage = tr('checkingZone');
   renderPunchButtonState();
   if(!getCapacitorGeolocation() && !navigator.geolocation){
-    setZoneAvailability({allowed:false,message:'الموقع غير مدعوم في هذا الجهاز'});
+    setZoneAvailability({allowed:false,message:tr('locationUnsupported')});
     return;
   }
   try{
@@ -1123,7 +1395,7 @@ async function startZoneWatch(){
     zoneWatchHandle = await watchDevicePosition(current=>{
       updateFromPosition(current);
     },error=>{
-      setZoneAvailability({allowed:false,message:error?.message || 'اسمح للتطبيق بالوصول إلى الموقع'});
+      setZoneAvailability({allowed:false,message:error?.message || tr('allowLocation')});
     },{
       enableHighAccuracy:true,
       timeout:8000,
@@ -1140,7 +1412,7 @@ async function startZoneWatch(){
         }));
       } catch(error){
         if(!lastKnownLocation || getLocationAgeMs(lastKnownLocation) > GPS_LAST_LOCATION_MAX_AGE_MS){
-          setZoneAvailability({allowed:false,message:error?.message || 'جاري تحديث موقعك...'});
+          setZoneAvailability({allowed:false,message:error?.message || tr('updatingLocation')});
         }
       } finally {
         zoneRefreshBusy = false;
@@ -1150,7 +1422,7 @@ async function startZoneWatch(){
       .then(updateFromPosition)
       .catch(()=>{});
   } catch(error){
-    setZoneAvailability({allowed:false,message:error?.message || 'اسمح للتطبيق بالوصول إلى الموقع'});
+    setZoneAvailability({allowed:false,message:error?.message || tr('allowLocation')});
   }
 }
 
@@ -1171,7 +1443,7 @@ function stopZoneWatch(){
 async function ensureInsideEmployerZone(){
   if(!zoneAllowed || !activeBarcodePlace || !isBarcodePlaceValidForCurrentDuty(activeBarcodePlace)){
     resetBarcodeVerification();
-    throw new Error(zoneStatusMessage || 'امسح باركود الفرع أولاً');
+    throw new Error(zoneStatusMessage || tr('scanBarcodeFirst'));
   }
   const dutyItem = getCurrentDutyItem();
   const employer = getCurrentEmployer(dutyItem);
@@ -1187,7 +1459,7 @@ async function ensureInsideEmployerZone(){
     barcodeToken:activeBarcodePlace.barcodeToken || '',
     barcodeTitle:activeBarcodePlace.title || '',
     branchKey:activeBarcodePlace.branchKey || getCurrentDutyBranchKey(dutyItem),
-    branchName:branchNames[activeBarcodePlace.branchKey] || activeBarcodePlace.branchName || '',
+    branchName:getBranchName(activeBarcodePlace.branchKey) || activeBarcodePlace.branchName || '',
     lat:verification.lat,
     lng:verification.lng,
     accuracy:verification.accuracy,
@@ -1206,18 +1478,18 @@ async function ensureInsideEmployerZone(){
 }
 
 function renderApp(){
-  const firstName = String(currentEmployee?.name || '').split(/\s+/)[0] || 'موظفنا';
-  document.getElementById('helloName').textContent = `مرحباً ${firstName}`;
-  document.getElementById('todayText').textContent = new Date().toLocaleDateString('ar-KW',{weekday:'long',day:'numeric',month:'numeric'});
+  const firstName = String(currentEmployee?.name || '').split(/\s+/)[0] || tr('employeeFallback');
+  document.getElementById('helloName').textContent = appLang === 'ar' ? `مرحباً ${firstName}` : `Hello ${firstName}`;
+  document.getElementById('todayText').textContent = new Date().toLocaleDateString(tr('dateLocale'),{weekday:'long',day:'numeric',month:'numeric'});
   const items = getTodayScheduleItems();
   document.getElementById('scheduleCards').innerHTML = items.length ? items.map(item=>`
     <div class="task-card">
-      <div class="task-branch">${branchNames[item.zone] || item.zone}</div>
+      <div class="task-branch">${getBranchName(item.zone) || item.zone}</div>
       <div class="task-text" style="font-weight:800;color:var(--text)">${item.employerName || currentEmployee.employer || ''}</div>
-      <div class="task-time">${formatTimeValue(item.from)} إلى ${formatTimeValue(item.to)}</div>
-      <div class="task-text">${(item.tasks || []).join(' + ') || 'بدون مهام محددة'}</div>
+      <div class="task-time">${formatTimeValue(item.from)} ${tr('to')} ${formatTimeValue(item.to)}</div>
+      <div class="task-text">${(item.tasks || []).map(translateTask).join(' + ') || tr('noTasks')}</div>
     </div>
-  `).join('') : '<div class="empty">لا يوجد دوام مسجل لك اليوم</div>';
+  `).join('') : `<div class="empty">${tr('noDutyToday')}</div>`;
   renderPunchButtonState();
 }
 
@@ -1225,7 +1497,7 @@ async function startPunch(options={}){
   if(scanning || !currentEmployee) return;
   if(!zoneAllowed){
     document.getElementById('punchStatus').className = 'status err';
-    document.getElementById('punchStatus').textContent = zoneStatusMessage || 'امسح الباركود أولاً';
+    document.getElementById('punchStatus').textContent = zoneStatusMessage || tr('scanBarcodeStatus');
     renderPunchButtonState();
     return;
   }
@@ -1237,7 +1509,7 @@ async function startPunch(options={}){
     showExitPanel();
     zoneAllowed = false;
     activeBarcodePlace = null;
-    zoneStatusMessage = 'ارفق إذن الخروج ثم امسح الباركود لتسجيل بصمة الخروج';
+    zoneStatusMessage = tr('attachExitThenScan');
     renderPunchButtonState();
     return;
   }
@@ -1247,15 +1519,15 @@ async function startPunch(options={}){
   button.classList.add('scanning');
   button.classList.remove('checked-in');
   status.className = 'status';
-  status.textContent = 'جاري التحقق من الباركود...';
+  status.textContent = tr('checkingBarcode');
   const now = new Date();
   const date = formatDateInput(now);
   const time = formatTimeInput(now);
   try{
     const location = await ensureInsideEmployerZone();
     status.textContent = options.fromBarcode
-      ? `جاري اعتماد بصمة ${type === 'out' ? 'الخروج' : 'الحضور'}...`
-      : 'جاري تحليل البصمة...';
+      ? tr('approvingPunch',{type})
+      : tr('analyzingFingerprint');
     await wait(options.fromBarcode ? 350 : 250);
     const payload = {
       empId:currentEmployee.id,
@@ -1283,13 +1555,13 @@ async function startPunch(options={}){
     if(type === 'out'){
       zoneAllowed = false;
       activeBarcodePlace = null;
-      zoneStatusMessage = 'امسح الباركود لتسجيل بصمة جديدة';
+      zoneStatusMessage = tr('scanNewBarcode');
     }
     speakThanks();
   } catch(err){
     console.error(err);
     status.className = 'status err';
-    status.textContent = err.message || 'تعذر تسجيل البصمة';
+    status.textContent = err.message || tr('cannotPunch');
   } finally {
     button.classList.remove('scanning');
     scanning = false;
@@ -1310,7 +1582,7 @@ function renderPunchButtonState(){
   button.classList.toggle('success', Boolean(lastPunchSuccess));
   if(scanButton){
     scanButton.classList.toggle('active', zoneAllowed);
-    scanButton.textContent = zoneAllowed ? 'تم مسح باركود الفرع' : 'مسح باركود الفرع';
+    scanButton.textContent = zoneAllowed ? tr('barcodeScanned') : tr('scanBranch');
   }
   if(lastPunchSuccess){
     label.textContent = lastPunchSuccess.title;
@@ -1320,21 +1592,21 @@ function renderPunchButtonState(){
     return;
   }
   if(!zoneAllowed){
-    label.textContent = 'امسح الباركود';
+    label.textContent = tr('scanBarcode');
     const status = document.getElementById('punchStatus');
     const text = zoneStatusMessage || getExpectedBarcodeMessage();
-    status.className = punchFeedbackMessage ? 'status ok' : (text.startsWith('تم ') ? 'status ok' : 'status err');
+    status.className = punchFeedbackMessage ? 'status ok' : 'status err';
     status.textContent = punchFeedbackMessage || text;
     return;
   }
   if(checkedIn){
-    label.textContent = pendingExitPermissionImage ? 'امسح باركود الخروج' : 'امسح الباركود';
+    label.textContent = pendingExitPermissionImage ? tr('scanExitBarcode') : tr('scanBarcode');
     document.getElementById('punchStatus').className = 'status ok';
     document.getElementById('punchStatus').textContent = punchFeedbackMessage || (canExitNormally() || pendingExitPermissionImage
-      ? 'امسح الباركود لتسجيل بصمة الخروج'
-      : 'لا يمكن تسجيل الخروج إلا بإذن أو قبل نهاية الدوام ب 15 دقيقة');
+      ? tr('scanExitStatus')
+      : tr('exitBlocked'));
   } else {
-    label.textContent = 'ضع اصبعك هنا';
+    label.textContent = tr('fingerprintLabel');
     document.getElementById('punchStatus').className = 'status ok';
     document.getElementById('punchStatus').textContent = punchFeedbackMessage || zoneStatusMessage;
   }
@@ -1342,6 +1614,7 @@ function renderPunchButtonState(){
 
 function beginFingerprintHold(event){
   event.preventDefault();
+  event.currentTarget?.blur?.();
   if(scanning || !currentEmployee) return;
   const checkedIn = isCheckedIn();
   if(checkedIn){
@@ -1354,12 +1627,13 @@ function beginFingerprintHold(event){
   }
   const button = document.getElementById('fingerprintButton');
   const label = button.querySelector('.fingerprint-label');
+  button.blur();
   button.setPointerCapture?.(event.pointerId);
   clearTimeout(holdTimer);
   button.classList.add('holding');
-  label.textContent = 'استمر ثانيتين';
+  label.textContent = tr('holdTwoSeconds');
   document.getElementById('punchStatus').className = 'status ok';
-  document.getElementById('punchStatus').textContent = 'استمر بالضغط لتسجيل البصمة';
+  document.getElementById('punchStatus').textContent = tr('keepHolding');
   holdTimer = setTimeout(()=>{
     holdTimer = null;
     button.classList.remove('holding');
@@ -1367,12 +1641,15 @@ function beginFingerprintHold(event){
   },2000);
 }
 
-function cancelFingerprintHold(){
+function cancelFingerprintHold(event){
+  event?.preventDefault?.();
+  event?.currentTarget?.blur?.();
   if(!holdTimer) return;
   clearTimeout(holdTimer);
   holdTimer = null;
   const button = document.getElementById('fingerprintButton');
   button?.classList.remove('holding');
+  button?.blur?.();
   renderPunchButtonState();
 }
 
@@ -1395,7 +1672,7 @@ function attachExitPermission(){
   const file = document.getElementById('exitPermissionFile').files[0];
   if(!file){
     document.getElementById('punchStatus').className = 'status err';
-    document.getElementById('punchStatus').textContent = 'ارفق صورة إذن الخروج أولاً';
+    document.getElementById('punchStatus').textContent = tr('attachExitFirst');
     return;
   }
   const reader = new FileReader();
@@ -1403,7 +1680,7 @@ function attachExitPermission(){
     pendingExitPermissionImage = e.target.result;
     hideExitPanel();
     document.getElementById('punchStatus').className = 'status ok';
-    resetBarcodeVerification('تم إرفاق إذن الخروج، امسح الباركود لتسجيل بصمة الخروج');
+    resetBarcodeVerification(tr('exitAttached'));
   };
   reader.readAsDataURL(file);
 }
@@ -1411,14 +1688,15 @@ function attachExitPermission(){
 function speakThanks(){
   const firstName = String(currentEmployee?.name || '').split(/\s+/)[0] || '';
   if(!('speechSynthesis' in window)) return;
-  const utterance = new SpeechSynthesisUtterance(`شكراً لك يا ${firstName}`);
-  utterance.lang = 'ar-KW';
+  const utterance = new SpeechSynthesisUtterance(tr('speechThanks',{name:firstName}));
+  utterance.lang = appLang === 'ar' ? 'ar-KW' : 'en-US';
   utterance.rate = .95;
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
 }
 </script>
 <script>
+applyLanguage();
 if('serviceWorker' in navigator && location.protocol === 'https:'){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('sw.js').catch(err=>{
