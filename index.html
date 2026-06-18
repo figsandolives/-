@@ -59,6 +59,11 @@ button:focus,button:focus-visible,button:active{outline:none!important}
 .confirm-name{font-size:18px;font-weight:900;color:var(--accent);margin-bottom:8px}
 .confirm-text{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:16px}
 .confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choice-actions{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
+.choice-btn{height:54px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-family:'Tajawal',sans-serif;font-size:18px;font-weight:900;cursor:pointer}
+.choice-btn.out{background:#0f172a}
+.success-check{width:78px;height:78px;border-radius:50%;background:rgba(16,185,129,.12);color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:44px;font-weight:900}
+.success-modal-title{font-size:20px;font-weight:900;color:var(--text);margin-bottom:16px}
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
 .top-actions{display:flex;align-items:center;gap:8px}
 .hello{font-size:21px;font-weight:900}
@@ -205,7 +210,7 @@ button:focus,button:focus-visible,button:active{outline:none!important}
         <div class="barcode-reader-text" id="barcodeReaderText" data-i18n="pointCamera">وجّه الكاميرا نحو باركود الفرع</div>
         <button class="mini-btn secondary" style="width:100%;margin-top:10px" onclick="stopBarcodeScan()" data-i18n="closeCamera">إغلاق الكاميرا</button>
       </div>
-      <button class="fingerprint-button locked" id="fingerprintButton" type="button" tabindex="-1" onpointerdown="beginFingerprintHold(event)" onpointerup="cancelFingerprintHold(event)" onpointerleave="cancelFingerprintHold(event)" onpointercancel="cancelFingerprintHold(event)" onclick="event.preventDefault();event.currentTarget.blur();return false">
+      <button class="fingerprint-button locked" id="fingerprintButton" type="button" tabindex="-1" onclick="openPunchTypeChooser(event)">
         <span class="fingerprint-lines"></span>
         <span class="scan-line"></span>
         <span class="fingerprint-label" data-i18n="fingerprintLabel">ضع اصبعك هنا</span>
@@ -226,6 +231,26 @@ button:focus,button:focus-visible,button:active{outline:none!important}
     </div>
   </div>
 </section>
+
+<div class="confirm-backdrop hidden" id="punchTypeModal">
+  <div class="confirm-card">
+    <div class="confirm-title" data-i18n="choosePunchType">اختر نوع البصمة</div>
+    <div class="confirm-text" data-i18n="choosePunchTypeText">سيتم فتح الكاميرا لمسح باركود الفرع بعد الاختيار.</div>
+    <div class="choice-actions">
+      <button class="choice-btn" type="button" onclick="choosePunchType('in')" data-i18n="punchInOption">دخول</button>
+      <button class="choice-btn out" type="button" onclick="choosePunchType('out')" data-i18n="punchOutOption">خروج</button>
+      <button class="mini-btn secondary" type="button" onclick="closePunchTypeChooser()" data-i18n="confirmNo">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-backdrop hidden" id="punchSuccessModal">
+  <div class="confirm-card">
+    <div class="success-check">✓</div>
+    <div class="success-modal-title" data-i18n="successModalTitle">تم تسجيل البصمة بنجاح</div>
+    <button class="mini-btn" type="button" style="width:100%" onclick="closePunchSuccessModal()" data-i18n="close">إغلاق</button>
+  </div>
+</div>
 
 <script>
 (function loadCapacitorBridge(){
@@ -335,6 +360,7 @@ let punchFeedbackMessage = '';
 let lastPunchSuccess = null;
 let punchSuccessResetTimer = null;
 let barcodeLocationCheckBusy = false;
+let pendingPunchType = '';
 
 const dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
 const branchNames = {
@@ -394,6 +420,14 @@ const translations = {
     noBarcodeForBranch:({branch})=>`لم يتم إنشاء باركود لهذا الفرع: ${branch}`,
     scanBranchBarcode:({branch})=>`امسح باركود ${branch} لتفعيل البصمة`,
     scanBarcodeToEnable:'امسح باركود الفرع لتفعيل البصمة',
+    scanAnyBranchBarcode:'امسح باركود الفرع لتسجيل البصمة',
+    noBarcodePlaces:'لا توجد باركودات بصمة محفوظة بعد',
+    choosePunchType:'اختر نوع البصمة',
+    choosePunchTypeText:'سيتم فتح الكاميرا لمسح باركود الفرع بعد الاختيار.',
+    punchInOption:'دخول',
+    punchOutOption:'خروج',
+    successModalTitle:'تم تسجيل البصمة بنجاح',
+    close:'إغلاق',
     cameraUnsupported:'الكاميرا غير مدعومة على هذا الجهاز',
     allowCamera:'اسمح للتطبيق باستخدام الكاميرا لمسح الباركود',
     keepCameraSteady:'قرّب الكاميرا من الباركود وثبّت الصورة',
@@ -486,6 +520,14 @@ const translations = {
     noBarcodeForBranch:({branch})=>`No barcode has been created for this branch: ${branch}`,
     scanBranchBarcode:({branch})=>`Scan ${branch} barcode to enable fingerprint`,
     scanBarcodeToEnable:'Scan the branch barcode to enable fingerprint',
+    scanAnyBranchBarcode:'Scan a branch barcode to record fingerprint',
+    noBarcodePlaces:'No fingerprint barcodes have been saved yet',
+    choosePunchType:'Choose Fingerprint Type',
+    choosePunchTypeText:'The camera will open to scan the branch barcode after selection.',
+    punchInOption:'Check In',
+    punchOutOption:'Check Out',
+    successModalTitle:'Fingerprint recorded successfully',
+    close:'Close',
     cameraUnsupported:'Camera is not supported on this device',
     allowCamera:'Allow the app to use the camera to scan the barcode',
     keepCameraSteady:'Move closer to the barcode and keep the camera steady',
@@ -918,26 +960,38 @@ function getCurrentDutyBranchKey(dutyItem=getCurrentDutyItem()){
   return branches.length === 1 ? branches[0] : '';
 }
 
+function isFingerprintBarcodePlace(place){
+  return Boolean(place && (place.mode === 'barcode' || place.barcodeToken || place.barcodeValue));
+}
+
+function getAllFingerprintBarcodePlaces(){
+  return Object.values(hrData.fingerprintPlaces || {}).filter(isFingerprintBarcodePlace);
+}
+
 function getFingerprintBarcodePlacesForDuty(dutyItem=getCurrentDutyItem()){
   const branchKey = getCurrentDutyBranchKey(dutyItem);
-  if(!branchKey) return [];
-  return Object.values(hrData.fingerprintPlaces || {}).filter(place=>
-    (place?.mode === 'barcode' || place?.barcodeToken || place?.barcodeValue) && place.branchKey === branchKey
-  );
+  const places = getAllFingerprintBarcodePlaces();
+  if(!branchKey) return places;
+  return places.filter(place=>place.branchKey === branchKey);
 }
 
 function isBarcodePlaceValidForCurrentDuty(place){
-  if(!place?.barcodeToken) return false;
-  return getFingerprintBarcodePlacesForDuty().some(item=>item.id === place.id || item.barcodeToken === place.barcodeToken);
+  if(!place?.barcodeToken && !place?.barcodeValue) return false;
+  return getFingerprintBarcodePlacesForDuty().some(item=>
+    item.id === place.id ||
+    (place.barcodeToken && item.barcodeToken === place.barcodeToken) ||
+    (place.barcodeValue && item.barcodeValue === place.barcodeValue)
+  );
 }
 
 function getExpectedBarcodeMessage(){
   const dutyItem = getCurrentDutyItem();
-  if(!dutyItem) return tr('noDutyToday');
+  const places = getFingerprintBarcodePlacesForDuty(dutyItem);
+  if(!dutyItem) return places.length ? tr('scanAnyBranchBarcode') : tr('noBarcodePlaces');
   const branchKey = getCurrentDutyBranchKey(dutyItem);
   const branchName = getBranchName(branchKey) || dutyItem.employerName || currentEmployee?.employer || tr('branchFallback');
-  if(!getFingerprintBarcodePlacesForDuty(dutyItem).length) return tr('noBarcodeForBranch',{branch:branchName});
-  return tr('scanBranchBarcode',{branch:branchName});
+  if(!places.length) return branchKey ? tr('noBarcodeForBranch',{branch:branchName}) : tr('noBarcodePlaces');
+  return branchKey ? tr('scanBranchBarcode',{branch:branchName}) : tr('scanAnyBranchBarcode');
 }
 
 function resetBarcodeVerification(message=''){
@@ -972,7 +1026,7 @@ async function startBarcodeScan(){
   clearPunchSuccessState();
   hideBarcodeAnalysis();
   if(!getFingerprintBarcodePlacesForDuty().length){
-    resetBarcodeVerification();
+    resetBarcodeVerification(tr('noBarcodePlaces'));
     return;
   }
   stopBarcodeScan();
@@ -1067,8 +1121,9 @@ async function handleScannedBarcode(value){
     hideBarcodeAnalysis();
     barcodeLocationCheckBusy = false;
     renderPunchButtonState();
-    zoneStatusMessage = isCheckedIn() ? tr('barcodeOkOut') : tr('barcodeOkIn');
-    await startPunch({fromBarcode:true});
+    const selectedType = pendingPunchType || (isCheckedIn() ? 'out' : 'in');
+    zoneStatusMessage = selectedType === 'out' ? tr('barcodeOkOut') : tr('barcodeOkIn');
+    await startPunch({fromBarcode:true,type:selectedType});
   } catch(err){
     console.error(err);
     activeBarcodePlace = null;
@@ -1502,17 +1557,8 @@ async function startPunch(options={}){
     return;
   }
   punchFeedbackMessage = '';
-  const checkedIn = isCheckedIn();
-  let type = checkedIn ? 'out' : 'in';
+  const type = options.type || pendingPunchType || (isCheckedIn() ? 'out' : 'in');
   const dutyItem = getCurrentDutyItem();
-  if(checkedIn && !canExitNormally() && !pendingExitPermissionImage){
-    showExitPanel();
-    zoneAllowed = false;
-    activeBarcodePlace = null;
-    zoneStatusMessage = tr('attachExitThenScan');
-    renderPunchButtonState();
-    return;
-  }
   scanning = true;
   const button = document.getElementById('fingerprintButton');
   const status = document.getElementById('punchStatus');
@@ -1540,23 +1586,19 @@ async function startPunch(options={}){
       location,
       createdAt:firebase.database.ServerValue.TIMESTAMP
     };
-    if(type === 'out' && pendingExitPermissionImage){
-      payload.exitPermission = true;
-      payload.exitPermissionImage = pendingExitPermissionImage;
-    }
     const ref = await db.ref('fingerprintPunches').push(payload);
     punches.push({id:ref.key,...payload});
     pendingExitPermissionImage = '';
+    pendingPunchType = '';
     hideExitPanel();
     punchFeedbackMessage = getPunchSuccessMessage(type, now, dutyItem);
     setPunchSuccessState(type, now, dutyItem);
+    showPunchSuccessModal();
     status.className = 'status ok';
     status.textContent = punchFeedbackMessage;
-    if(type === 'out'){
-      zoneAllowed = false;
-      activeBarcodePlace = null;
-      zoneStatusMessage = tr('scanNewBarcode');
-    }
+    zoneAllowed = false;
+    activeBarcodePlace = null;
+    zoneStatusMessage = tr('scanNewBarcode');
     speakThanks();
   } catch(err){
     console.error(err);
@@ -1595,16 +1637,14 @@ function renderPunchButtonState(){
     label.textContent = tr('scanBarcode');
     const status = document.getElementById('punchStatus');
     const text = zoneStatusMessage || getExpectedBarcodeMessage();
-    status.className = punchFeedbackMessage ? 'status ok' : 'status err';
+    status.className = punchFeedbackMessage ? 'status ok' : 'status';
     status.textContent = punchFeedbackMessage || text;
     return;
   }
-  if(checkedIn){
-    label.textContent = pendingExitPermissionImage ? tr('scanExitBarcode') : tr('scanBarcode');
+  if(pendingPunchType === 'out' || checkedIn){
+    label.textContent = tr('scanExitBarcode');
     document.getElementById('punchStatus').className = 'status ok';
-    document.getElementById('punchStatus').textContent = punchFeedbackMessage || (canExitNormally() || pendingExitPermissionImage
-      ? tr('scanExitStatus')
-      : tr('exitBlocked'));
+    document.getElementById('punchStatus').textContent = punchFeedbackMessage || tr('scanExitStatus');
   } else {
     label.textContent = tr('fingerprintLabel');
     document.getElementById('punchStatus').className = 'status ok';
@@ -1612,33 +1652,36 @@ function renderPunchButtonState(){
   }
 }
 
+function openPunchTypeChooser(event){
+  event?.preventDefault?.();
+  event?.currentTarget?.blur?.();
+  if(scanning || barcodeLocationCheckBusy || !currentEmployee) return;
+  clearPunchSuccessState();
+  document.getElementById('punchTypeModal')?.classList.remove('hidden');
+}
+
+function closePunchTypeChooser(){
+  document.getElementById('punchTypeModal')?.classList.add('hidden');
+}
+
+function choosePunchType(type){
+  pendingPunchType = type === 'out' ? 'out' : 'in';
+  closePunchTypeChooser();
+  startBarcodeScan();
+}
+
+function showPunchSuccessModal(){
+  document.getElementById('punchSuccessModal')?.classList.remove('hidden');
+}
+
+function closePunchSuccessModal(){
+  document.getElementById('punchSuccessModal')?.classList.add('hidden');
+  clearPunchSuccessState();
+  renderPunchButtonState();
+}
+
 function beginFingerprintHold(event){
-  event.preventDefault();
-  event.currentTarget?.blur?.();
-  if(scanning || !currentEmployee) return;
-  const checkedIn = isCheckedIn();
-  if(checkedIn){
-    startBarcodeScan();
-    return;
-  }
-  if(!zoneAllowed){
-    startBarcodeScan();
-    return;
-  }
-  const button = document.getElementById('fingerprintButton');
-  const label = button.querySelector('.fingerprint-label');
-  button.blur();
-  button.setPointerCapture?.(event.pointerId);
-  clearTimeout(holdTimer);
-  button.classList.add('holding');
-  label.textContent = tr('holdTwoSeconds');
-  document.getElementById('punchStatus').className = 'status ok';
-  document.getElementById('punchStatus').textContent = tr('keepHolding');
-  holdTimer = setTimeout(()=>{
-    holdTimer = null;
-    button.classList.remove('holding');
-    startPunch();
-  },2000);
+  openPunchTypeChooser(event);
 }
 
 function cancelFingerprintHold(event){
