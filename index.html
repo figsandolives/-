@@ -304,6 +304,10 @@ function normalizeCollection(value){
   return value && typeof value === 'object' ? value : {};
 }
 
+function mergeCollection(base,remote){
+  return {...(base || {}), ...(remote || {})};
+}
+
 function normalizeHrData(data={}){
   return {
     employees:normalizeCollection(data.employees),
@@ -329,11 +333,11 @@ function mergeHrDataWithSnapshot(remoteData){
   const remote = normalizeHrData(remoteData || {});
   const remoteIsCurrent = isRemoteHrDataCurrent(remoteData);
   const merged = clonePlain(snapshotHrData);
-  if(remoteIsCurrent || countObject(remote.employees) > countObject(snapshotHrData.employees)) merged.employees = remote.employees;
-  if(remoteIsCurrent || countObject(remote.employers) > countObject(snapshotHrData.employers)) merged.employers = remote.employers;
-  if(remoteIsCurrent || countObject(remote.fingerprintCodes) > countObject(snapshotHrData.fingerprintCodes)) merged.fingerprintCodes = remote.fingerprintCodes;
+  if(remoteIsCurrent || countObject(remote.employees)) merged.employees = mergeCollection(merged.employees, remote.employees);
+  if(remoteIsCurrent || countObject(remote.employers)) merged.employers = mergeCollection(merged.employers, remote.employers);
+  if(remoteIsCurrent || countObject(remote.fingerprintCodes)) merged.fingerprintCodes = mergeCollection(merged.fingerprintCodes, remote.fingerprintCodes);
   if(countObject(remote.schedules)) merged.schedules = remote.schedules;
-  if(countObject(remote.fingerprintPlaces)) merged.fingerprintPlaces = remote.fingerprintPlaces;
+  if(countObject(remote.fingerprintPlaces)) merged.fingerprintPlaces = mergeCollection(merged.fingerprintPlaces, remote.fingerprintPlaces);
   return merged;
 }
 
@@ -805,7 +809,7 @@ function cancelLoginSelection(){
 
 function login(){
   const code = normalizeDigits(document.getElementById('codeInput').value).replace(/[^0-9]/g,'');
-  const match = Object.entries(hrData.fingerprintCodes || {}).find(([,savedCode])=>String(savedCode) === code);
+  const match = Object.entries(hrData.fingerprintCodes || {}).find(([,savedCode])=>normalizeDigits(savedCode).replace(/[^0-9]/g,'') === code);
   if(!match){
     document.getElementById('loginError').textContent = tr('invalidCode');
     return;
