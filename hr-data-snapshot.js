@@ -1,5 +1,5 @@
 window.HRMS_BASMA_DATA_SNAPSHOT = {
-  "generatedAt": "2026-06-16T09:15:35.547Z",
+  "generatedAt": "2026-06-29T11:02:22.719Z",
   "employees": {
     "moo7clr7r75wy9z2zpj": {
       "id": "moo7clr7r75wy9z2zpj",
@@ -630,7 +630,59 @@ window.HRMS_BASMA_DATA_SNAPSHOT = {
     "card_290070808775": "4782",
     "card_287070402305": "2305"
   },
-  "fingerprintPlaces": {},
+  "fingerprintPlaces": {
+    "barcode-abu-al-hasaniya": {
+      "id": "barcode-abu-al-hasaniya",
+      "mode": "barcode",
+      "title": "باركود أبو الحصانية",
+      "branchKey": "abulhasania",
+      "branchName": "أبو الحصانية",
+      "barcodeToken": "bq-1782039493830-opsvylqd",
+      "barcodeValue": "HRMS-BASMA:bq-1782039493830-opsvylqd",
+      "location": {
+        "lat": 29.342263,
+        "lng": 48.018131
+      },
+      "radiusMeters": 30,
+      "restoredFromPrintedBarcode": true,
+      "createdAt": "2026-06-21T10:58:13.830Z",
+      "updatedAt": "2026-06-29T11:02:22.719Z"
+    },
+    "barcode-yarmouk": {
+      "id": "barcode-yarmouk",
+      "mode": "barcode",
+      "title": "باركود اليرموك",
+      "branchKey": "yarmouk",
+      "branchName": "اليرموك",
+      "barcodeToken": "bq-1782039427444-t1gcyrka",
+      "barcodeValue": "HRMS-BASMA:bq-1782039427444-t1gcyrka",
+      "location": {
+        "lat": 29.342263,
+        "lng": 48.018131
+      },
+      "radiusMeters": 30,
+      "restoredFromPrintedBarcode": true,
+      "createdAt": "2026-06-21T10:57:07.444Z",
+      "updatedAt": "2026-06-29T11:02:22.719Z"
+    },
+    "barcode-hawally": {
+      "id": "barcode-hawally",
+      "mode": "barcode",
+      "title": "باركود حولي",
+      "branchKey": "surra",
+      "branchName": "حولي",
+      "barcodeToken": "bq-1780311331449-wtnbcl1f",
+      "barcodeValue": "HRMS-BASMA:bq-1780311331449-wtnbcl1f",
+      "location": {
+        "lat": 29.342263,
+        "lng": 48.018131
+      },
+      "radiusMeters": 30,
+      "restoredFromPrintedBarcode": true,
+      "createdAt": "2026-06-01T10:55:31.449Z",
+      "updatedAt": "2026-06-29T11:02:22.719Z"
+    }
+  },
   "employers": [
     {
       "id": "moo7b4cj3xxwza2j4ew",
