@@ -355,6 +355,28 @@ function normalizeHrData(data={}){
   };
 }
 
+function normalizeFingerprintCodeEntry(entry){
+  if(entry && typeof entry === 'object'){
+    return {
+      code:normalizeDigits(entry.code ?? '').replace(/[^0-9]/g,''),
+      requireLocation:entry.requireLocation !== false
+    };
+  }
+  return {
+    code:normalizeDigits(entry ?? '').replace(/[^0-9]/g,''),
+    requireLocation:true
+  };
+}
+
+function getFingerprintCodeValue(entry){
+  return normalizeFingerprintCodeEntry(entry).code;
+}
+
+function employeeRequiresLocation(employee=currentEmployee){
+  if(!employee?.id) return true;
+  return normalizeFingerprintCodeEntry(hrData.fingerprintCodes?.[employee.id]).requireLocation !== false;
+}
+
 const snapshotHrData = normalizeHrData(window.HRMS_BASMA_DATA_SNAPSHOT || getEmptyHrData());
 const snapshotGeneratedAt = Date.parse(window.HRMS_BASMA_DATA_SNAPSHOT?.generatedAt || '');
 let hrData = clonePlain(snapshotHrData);
@@ -490,6 +512,7 @@ const translations = {
     wrongBarcodeStatus:'الباركود غير صحيح لهذا الفرع',
     analyzingBarcode:'جاري تحليل الباركود والتأكد من مكان العمل...',
     insideWorkplace:({distance})=>`داخل مكان العمل - المسافة ${distance} متر`,
+    barcodeOkNoLocation:'تم تحليل الباركود بنجاح، هذا الموظف لا يحتاج تحقق الموقع.',
     barcodeOkOut:'تم تحليل الباركود بنجاح، جاري تطبيق بصمة الخروج...',
     barcodeOkIn:'تم تحليل الباركود بنجاح، جاري تطبيق بصمة الحضور...',
     notAtWork:'أنت لست في مكان العمل',
@@ -604,6 +627,7 @@ const translations = {
     wrongBarcodeStatus:'Invalid barcode for this branch',
     analyzingBarcode:'Analyzing barcode and checking workplace...',
     insideWorkplace:({distance})=>`Inside workplace - distance ${distance} m`,
+    barcodeOkNoLocation:'Barcode analyzed successfully. This employee does not require location verification.',
     barcodeOkOut:'Barcode analyzed successfully, recording check-out...',
     barcodeOkIn:'Barcode analyzed successfully, recording check-in...',
     notAtWork:'You are not at the workplace',
@@ -954,7 +978,7 @@ function cancelLoginSelection(){
 
 function login(){
   const code = normalizeDigits(document.getElementById('codeInput').value).replace(/[^0-9]/g,'');
-  const match = Object.entries(hrData.fingerprintCodes || {}).find(([,savedCode])=>normalizeDigits(savedCode).replace(/[^0-9]/g,'') === code);
+  const match = Object.entries(hrData.fingerprintCodes || {}).find(([,savedCode])=>getFingerprintCodeValue(savedCode) === code);
   if(!match){
     document.getElementById('loginError').textContent = tr('invalidCode');
     return;
@@ -1261,18 +1285,23 @@ async function handleScannedBarcode(value){
   showBarcodeAnalysis();
   renderPunchButtonState();
   try{
+    const locationRequired = employeeRequiresLocation();
     const [verification] = await Promise.all([
-      verifyBarcodePlaceLocation(matchedPlace),
+      locationRequired ? verifyBarcodePlaceLocation(matchedPlace) : Promise.resolve(null),
       wait(1000)
     ]);
-    activeBarcodePlace = {...matchedPlace,_locationVerification:verification};
+    activeBarcodePlace = {...matchedPlace,_locationVerification:verification,_locationBypassed:!locationRequired};
     zoneAllowed = true;
-    zoneStatusMessage = tr('insideWorkplace',{distance:verification.distance.toFixed(1)});
+    zoneStatusMessage = locationRequired
+      ? tr('insideWorkplace',{distance:verification.distance.toFixed(1)})
+      : tr('barcodeOkNoLocation');
     hideBarcodeAnalysis();
     barcodeLocationCheckBusy = false;
     renderPunchButtonState();
     const selectedType = pendingPunchType || (isCheckedIn() ? 'out' : 'in');
-    zoneStatusMessage = selectedType === 'out' ? tr('barcodeOkOut') : tr('barcodeOkIn');
+    zoneStatusMessage = locationRequired
+      ? (selectedType === 'out' ? tr('barcodeOkOut') : tr('barcodeOkIn'))
+      : tr('barcodeOkNoLocation');
     await startPunch({fromBarcode:true,type:selectedType});
   } catch(err){
     console.error(err);
@@ -1652,6 +1681,35 @@ async function ensureInsideEmployerZone(){
   }
   const dutyItem = getCurrentDutyItem();
   const employer = getCurrentEmployer(dutyItem);
+  if(!employeeRequiresLocation()){
+    const center = getBarcodePlaceCenter(activeBarcodePlace) || {};
+    const radiusMeters = Number(activeBarcodePlace.radiusMeters) || 0;
+    activeBarcodePlace = {...activeBarcodePlace,_locationBypassed:true};
+    return {
+      verificationMode:'barcode-no-location',
+      locationBypassed:true,
+      requireLocation:false,
+      fingerprintPlaceId:activeBarcodePlace.id || '',
+      barcodeToken:activeBarcodePlace.barcodeToken || '',
+      barcodeTitle:activeBarcodePlace.title || '',
+      branchKey:activeBarcodePlace.branchKey || getCurrentDutyBranchKey(dutyItem),
+      branchName:getBranchName(activeBarcodePlace.branchKey) || activeBarcodePlace.branchName || '',
+      lat:null,
+      lng:null,
+      accuracy:null,
+      altitude:null,
+      altitudeAccuracy:null,
+      distance:null,
+      radiusMeters,
+      placeLat:center.lat ?? null,
+      placeLng:center.lng ?? null,
+      employerId:employer?.id || dutyItem?.employerId || currentEmployee?.employerId || '',
+      employerName:employer?.name || dutyItem?.employerName || currentEmployee?.employer || '',
+      dutyFrom:dutyItem?.from || '',
+      dutyTo:dutyItem?.to || '',
+      zone:dutyItem?.zone || ''
+    };
+  }
   const savedVerification = activeBarcodePlace._locationVerification;
   const savedAt = Date.parse(savedVerification?.capturedAt || '');
   const verification = savedVerification && Number.isFinite(savedAt) && Date.now() - savedAt < 15000
