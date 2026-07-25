@@ -223,15 +223,17 @@ async function start() {
 }
 onAuthStateChanged(auth, async user => {
   if (!user) return;
-  const savedId = sessionStorage.getItem("rakaezEmployeeSession");
+  const savedId = localStorage.getItem("rakaezEmployeeSession") || sessionStorage.getItem("rakaezEmployeeSession");
   if (!savedId) { showLogin(); return; }
   try {
     const snap = await get(ref(db, `${ROOT}/employees/${savedId}`));
     if (!snap.exists()) throw new Error(t("انتهت الجلسة."));
     employee = { id: snap.key, ...snap.val() };
+    localStorage.setItem("rakaezEmployeeSession", employee.id);
+    sessionStorage.removeItem("rakaezEmployeeSession");
     await loadPortalData();
     renderHome();
-  } catch { sessionStorage.removeItem("rakaezEmployeeSession"); showLogin(); }
+  } catch { localStorage.removeItem("rakaezEmployeeSession"); sessionStorage.removeItem("rakaezEmployeeSession"); showLogin(); }
 });
 
 $("#phone-form").onsubmit = loginWithPhone;
@@ -252,7 +254,7 @@ async function loginWithPhone(event) {
     const selectedDial = normalPhone($("#employee-dial").value);
     employee = findEmployeeByPhone(`${selectedDial}${phone}`, list) || findEmployeeByPhone(phone, list);
     if (!employee) throw new Error(t("رقم الهاتف غير مرتبط بملف موظف."));
-    sessionStorage.setItem("rakaezEmployeeSession", employee.id);
+    localStorage.setItem("rakaezEmployeeSession", employee.id);
     await loadPortalData();
     renderHome();
   } catch (error) { employee = null; message.textContent = error.message || t("تعذر تسجيل الدخول."); }
@@ -374,7 +376,6 @@ function scanBarcodeFrame() {
   }
   scanFrame = requestAnimationFrame(scanBarcodeFrame);
 }
-const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 function showAttendanceProcessing() {
   $("#portal-modal").innerHTML = `<div class="portal-modal-backdrop attendance-result-backdrop"><section class="attendance-result processing"><div class="attendance-spinner"><i class="fa-solid fa-qrcode"></i></div><span>${t("تسجيل البصمة")}</span><h2>${t("جارٍ تحليل الباركود...")}</h2><p>${language === "en" ? "Please wait a moment" : "يرجى الانتظار لحظة"}</p></section></div>`;
 }
@@ -424,7 +425,7 @@ function renderSettings() {
 function bindSettingsEvents() {
   bindNumeric($("#settings-form"));
   $("#back-home").onclick = renderHome;
-  $("#portal-logout").onclick = () => { sessionStorage.removeItem("rakaezEmployeeSession"); employee = null; showLogin(); };
+  $("#portal-logout").onclick = () => { localStorage.removeItem("rakaezEmployeeSession"); sessionStorage.removeItem("rakaezEmployeeSession"); employee = null; showLogin(); };
   $("#settings-photo").onchange = event => { const file = event.target.files[0]; if (file) $(".settings-photo span").innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`; };
   $("#add-alt-phone").onclick = () => { $("#settings-alternates").insertAdjacentHTML("beforeend", phoneField("", "+965", $("#settings-alternates").children.length, "alternate")); bindSettingRows(); };
   $("#add-relative").onclick = () => { $("#settings-relatives").insertAdjacentHTML("beforeend", relativeRow({}, $("#settings-relatives").children.length)); bindSettingRows(); };
