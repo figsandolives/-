@@ -369,27 +369,21 @@ async function verifyScannedBarcode(value) {
   const place = matchingPlace(value);
   if (!place) { message.textContent = t("هذا الباركود لا يخص فرع دوامك الحالي."); scanFrame = requestAnimationFrame(scanBarcodeFrame); return; }
   scanBusy = true;
-  message.textContent = t("تمت قراءة الباركود، جاري التحقق من الموقع...");
+  message.textContent = language === "en" ? "QR code scanned. Recording attendance..." : "تمت قراءة الباركود، جاري تسجيل البصمة...";
   try {
-    const center = place.location || {};
-    const radius = Number(place.radiusMeters || 0);
-    if (!Number.isFinite(Number(center.lat)) || !Number.isFinite(Number(center.lng)) || radius <= 0) throw new Error(t("لم يتم ضبط موقع هذا المكان بعد."));
-    const location = await currentLocation();
-    const distance = distanceMeters(location, { lat: Number(center.lat), lng: Number(center.lng) });
-    if (distance > radius) throw new Error(language === "en" ? `You are outside the attendance location (${Math.round(distance)} m).` : `أنت خارج نطاق مكان البصمة (${Math.round(distance)} م).`);
-    message.textContent = t("تم التحقق من الباركود والموقع. جاري تسجيل البصمة...");
-    await recordAttendance(place, { ...location, distance: Math.round(distance), radiusMeters: radius });
+    await recordVerifiedAttendance(place);
     closeScanner();
   } catch (error) { scanBusy = false; message.textContent = error.message || t("تعذر التحقق من مكان البصمة."); scanFrame = requestAnimationFrame(scanBarcodeFrame); }
 }
-async function recordAttendance(place, location) {
+async function recordVerifiedAttendance(place) {
   const today = dateKey(new Date());
   const entry = push(ref(db, `${ROOT}/attendance/${today}/${employee.id}`));
-  await set(entry, { id: entry.key, employeeId: employee.id, type: pendingPunchType, timestamp: Date.now(), source: "employee-portal", verificationMode: "barcode-location", fingerprintPlaceId: place.id, barcodeToken: place.barcodeToken || "", barcodeValue: place.barcodeValue || "", barcodeTitle: place.title || place.branchName || "", branchKey: place.branchKey || "", branchName: place.branchName || "", location });
+  await set(entry, { id: entry.key, employeeId: employee.id, type: pendingPunchType, timestamp: Date.now(), source: "employee-portal", verificationMode: "barcode", fingerprintPlaceId: place.id, barcodeToken: place.barcodeToken || "", barcodeValue: place.barcodeValue || "", barcodeTitle: place.title || place.branchName || "", branchKey: place.branchKey || "", branchName: place.branchName || "" });
   const message = pendingPunchType === "checkIn" ? t("تم تسجيل الدخول بنجاح") : t("تم تسجيل الخروج بنجاح");
   $("#fingerprint-status") && ($("#fingerprint-status").textContent = message);
   showToast(message);
 }
+
 
 function phoneField(number, dial, index, type) {
   return `<div class="settings-phone-row"><select name="${type}Dial">${dialOptions(dial || "+965")}</select><input name="${type}Phone" value="${esc(number || "")}" inputmode="numeric" maxlength="15" placeholder="${t("رقم الهاتف")}" ${type === "primary" ? "required" : ""}>${type === "alternate" ? `<button type="button" data-remove-phone="${index}" aria-label="${t("إغلاق")}">×</button>` : "<span></span>"}</div>`;

@@ -1,4 +1,4 @@
-const CACHE_NAME = "rakaez-fingerprint-v1";
+const CACHE_NAME = "rakaez-fingerprint-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
