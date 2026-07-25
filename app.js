@@ -13,13 +13,14 @@ const ROOT = "organizations/default";
 const countries = [["الكويت", "Kuwait", "+965", "🇰🇼"], ["الهند", "India", "+91", "🇮🇳"], ["مصر", "Egypt", "+20", "🇪🇬"], ["الفلبين", "Philippines", "+63", "🇵🇭"], ["بنغلاديش", "Bangladesh", "+880", "🇧🇩"], ["سوريا", "Syria", "+963", "🇸🇾"], ["الأردن", "Jordan", "+962", "🇯🇴"], ["فلسطين", "Palestine", "+970", "🇵🇸"], ["لبنان", "Lebanon", "+961", "🇱🇧"]];
 const branchAliases = { hawalli: ["hawalli", "surra"], surra: ["hawalli", "surra"], abu_al_hasaniya: ["abu_al_hasaniya", "abulhasania"], abulhasania: ["abu_al_hasaniya", "abulhasania"], yarmouk: ["yarmouk"] };
 const defaultFingerprintPlaces = [
-  { id: "barcode-hawally", mode: "barcode", title: "باركود حولي", branchKey: "surra", branchName: "حولي", barcodeToken: "bq-1780311331449-wtnbcl1f", barcodeValue: "HRMS-BASMA:bq-1780311331449-wtnbcl1f", location: { lat: 29.342263, lng: 48.018131 }, radiusMeters: 30 },
-  { id: "barcode-abu-al-hasaniya", mode: "barcode", title: "باركود أبو الحصانية", branchKey: "abulhasania", branchName: "أبو الحصانية", barcodeToken: "bq-1782039493830-opsvylqd", barcodeValue: "HRMS-BASMA:bq-1782039493830-opsvylqd", location: { lat: 29.342263, lng: 48.018131 }, radiusMeters: 30 },
-  { id: "barcode-yarmouk", mode: "barcode", title: "باركود اليرموك", branchKey: "yarmouk", branchName: "اليرموك", barcodeToken: "bq-1782039427444-t1gcyrka", barcodeValue: "HRMS-BASMA:bq-1782039427444-t1gcyrka", location: { lat: 29.342263, lng: 48.018131 }, radiusMeters: 30 }
+  { id: "barcode-hawally", mode: "barcode", title: "باركود حولي", branchKey: "surra", branchName: "حولي", barcodeToken: "bq-1780311331449-wtnbcl1f", barcodeValue: "HRMS-BASMA:bq-1780311331449-wtnbcl1f" },
+  { id: "barcode-abu-al-hasaniya", mode: "barcode", title: "باركود أبو الحصانية", branchKey: "abulhasania", branchName: "أبو الحصانية", barcodeToken: "bq-1782039493830-opsvylqd", barcodeValue: "HRMS-BASMA:bq-1782039493830-opsvylqd" },
+  { id: "barcode-yarmouk", mode: "barcode", title: "باركود اليرموك", branchKey: "yarmouk", branchName: "اليرموك", barcodeToken: "bq-1782039427444-t1gcyrka", barcodeValue: "HRMS-BASMA:bq-1782039427444-t1gcyrka" }
 ];
 let employee = null;
 let publishedSchedules = [];
 let fingerprintPlaces = [];
+let employeeLeaves = [];
 let pendingPunchType = null;
 let scanStream = null;
 let scanFrame = null;
@@ -57,6 +58,16 @@ const en = {
   "جدول الدوام": "Work schedule",
   "بانتظار نشر الجدول": "Waiting for the schedule",
   "لا توجد فترات دوام منشورة لك حاليًا.": "You currently have no published shifts.",
+  "إجازة اليوم": "Today's leave",
+  "إجازة أسبوعية": "Weekly leave",
+  "إجازة سنوية": "Annual leave",
+  "إجازة مرضية": "Sick leave",
+  "إجازة": "Leave",
+  "نصف يوم": "Half day",
+  "لديك إجازة اليوم": "You are on leave today",
+  "جارٍ تحليل الباركود...": "Analyzing QR code...",
+  "تم تسجيل بصمة الدخول بنجاح": "Check-in recorded successfully",
+  "تم تسجيل بصمة الخروج بنجاح": "Check-out recorded successfully",
   "اضغط لتسجيل البصمة": "Tap to record attendance",
   "اختر الدخول أو الخروج ثم وجّه الكاميرا للباركود": "Choose check-in or check-out, then point the camera at the QR code",
   "خدمات": "Services",
@@ -76,13 +87,8 @@ const en = {
   "تعذر تحميل قارئ الباركود. تحقق من الاتصال بالإنترنت ثم أعد المحاولة.": "The QR reader could not load. Check your internet connection and try again.",
   "لا توجد أماكن بصمة مرتبطة بجدولك اليوم.": "No attendance locations are linked to your schedule today.",
   "اسمح للمتصفح باستخدام الكاميرا لمسح الباركود.": "Allow the browser to use the camera to scan the QR code.",
-  "الموقع الجغرافي غير متاح على هذا الجهاز.": "Location services are unavailable on this device.",
-  "اسمح بالوصول إلى موقعك الجغرافي.": "Allow access to your location.",
   "هذا الباركود لا يخص فرع دوامك الحالي.": "This QR code does not belong to your current work branch.",
-  "تمت قراءة الباركود، جاري التحقق من الموقع...": "QR code scanned. Verifying your location...",
-  "لم يتم ضبط موقع هذا المكان بعد.": "This location has not been configured yet.",
-  "تم التحقق من الباركود والموقع. جاري تسجيل البصمة...": "QR code and location verified. Recording attendance...",
-  "تعذر التحقق من مكان البصمة.": "Could not verify the attendance location.",
+  "تعذر تسجيل البصمة عبر الباركود.": "Could not record attendance from the QR code.",
   "تم تسجيل الدخول بنجاح": "Check-in recorded successfully",
   "تم تسجيل الخروج بنجاح": "Check-out recorded successfully",
   "نوع القرابة": "Relationship",
@@ -254,16 +260,31 @@ async function loginWithPhone(event) {
 }
 
 async function loadPortalData() {
-  const [schedules, places] = await Promise.all([get(ref(db, `${ROOT}/schedules`)), get(ref(db, `${ROOT}/fingerprintPlaces`))]);
+  const [schedules, places, leaves] = await Promise.all([get(ref(db, `${ROOT}/schedules`)), get(ref(db, `${ROOT}/fingerprintPlaces`)), get(ref(db, `${ROOT}/leaves`))]);
   publishedSchedules = Object.values(schedules.val() || {}).filter(item => item.published).sort((a, b) => String(a.dateKey).localeCompare(String(b.dateKey)));
   const configuredPlaces = Object.entries(places.val() || {}).map(([id, value]) => ({ id, ...value }));
   fingerprintPlaces = configuredPlaces.length ? configuredPlaces : defaultFingerprintPlaces;
+  employeeLeaves = Object.entries(leaves.val() || {}).map(([id, value]) => ({ id, ...value })).filter(leave => leave.employeeId === employee?.id);
 }
 function employeeAssignments() {
   const today = dateKey(new Date());
   const schedule = publishedSchedules.find(item => item.dateKey === today) || publishedSchedules.find(item => item.dateKey >= today) || null;
   return { schedule, items: Object.values(schedule?.assignments || {}).filter(item => item.employeeId === employee?.id).sort((a, b) => String(a.from).localeCompare(String(b.from))) };
 }
+function weeklyLeaveDays(leave) {
+  if (Array.isArray(leave?.weeklyDays) && leave.weeklyDays.length) return [...new Set(leave.weeklyDays.map(Number))];
+  return Number.isInteger(Number(leave?.weeklyDay)) ? [Number(leave.weeklyDay)] : [];
+}
+function leaveForToday() {
+  const today = dateKey(new Date());
+  const weekday = new Date(`${today}T12:00:00`).getDay();
+  return employeeLeaves.filter(leave => {
+    if (leave.type === "weekly") return weeklyLeaveDays(leave).includes(weekday);
+    return leave.startDate <= today && leave.endDate >= today && !(leave.skipEnabled && Number(leave.skipWeekday) === weekday);
+  }).sort((a, b) => (b.duration === "full") - (a.duration === "full") || Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0))[0] || null;
+}
+function leaveTypeText(leave) { return leave?.type === "weekly" ? t("إجازة أسبوعية") : leave?.type === "annual" ? t("إجازة سنوية") : leave?.type === "sick" ? t("إجازة مرضية") : t("إجازة"); }
+function leaveCard(leave) { return `<div class="leave-today-card"><i class="fa-solid fa-umbrella-beach"></i><div><b>${t("لديك إجازة اليوم")}</b><p>${leaveTypeText(leave)}${leave.duration === "half" ? ` · ${t("نصف يوم")}` : ""}</p></div></div>`; }
 function branchName(id) { return t(({ hawalli: "حولي", surra: "حولي", abu_al_hasaniya: "أبو الحصانية", abulhasania: "أبو الحصانية", yarmouk: "اليرموك" })[id] || id || ""); }
 function shiftCard(item, index) {
   const number = index === 0 ? t("الأول") : index === 1 ? t("الثاني") : index + 1;
@@ -272,11 +293,12 @@ function shiftCard(item, index) {
 function renderHome() {
   currentView = "home";
   const { schedule, items } = employeeAssignments();
+  const leave = leaveForToday();
   $("#pin-page").classList.add("hidden");
   $("#boot").classList.add("hidden");
   const app = $("#employee-app");
   app.classList.remove("hidden");
-  app.innerHTML = `<button id="open-settings" class="settings-button" aria-label="${t("الإعدادات")}"><i class="fa-solid fa-gear"></i></button><section class="employee-hero"><div class="profile-image">${employee.photoUrl || employee.photoDataUrl ? `<img src="${esc(employee.photoUrl || employee.photoDataUrl)}" alt="">` : `<span>${initials(employee.fullName)}</span>`}</div><div><small>${t("مرحباً بك")}</small><h1>${esc(employee.fullName)}</h1><p><i class="fa-regular fa-calendar-days"></i> ${schedule ? `${t("جدول دوام")} ${esc(localizeStored(schedule.dayName))}` : t("لا يوجد جدول منشور")}</p></div></section><section class="today-card"><header><div><span>${t("جدول الدوام")}</span><h2>${schedule ? `${esc(localizeStored(schedule.dayName))} · ${schedule.dateKey}` : t("بانتظار نشر الجدول")}</h2></div><i class="fa-regular fa-calendar-check"></i></header><div class="shifts">${items.length ? items.map(shiftCard).join("") : `<div class="no-shifts"><i class="fa-regular fa-calendar-xmark"></i><p>${t("لا توجد فترات دوام منشورة لك حاليًا.")}</p></div>`}</div></section><section class="fingerprint-area"><button id="fingerprint-button"><i class="fa-solid fa-fingerprint"></i></button><h2>${t("اضغط لتسجيل البصمة")}</h2><p id="fingerprint-status">${t("اختر الدخول أو الخروج ثم وجّه الكاميرا للباركود")}</p></section><nav class="bottom-nav"><button data-view="services"><i class="fa-solid fa-grip"></i><span>${t("خدمات")}</span></button><button class="active"><i class="fa-solid fa-fingerprint"></i><span>${t("البصمة")}</span></button><button data-view="notifications"><i class="fa-regular fa-bell"></i><span>${t("إشعارات")}</span></button></nav>`;
+  app.innerHTML = `<button id="open-settings" class="settings-button" aria-label="${t("الإعدادات")}"><i class="fa-solid fa-gear"></i></button><section class="employee-hero"><div class="profile-image">${employee.photoUrl || employee.photoDataUrl ? `<img src="${esc(employee.photoUrl || employee.photoDataUrl)}" alt="">` : `<span>${initials(employee.fullName)}</span>`}</div><div><small>${t("مرحباً بك")}</small><h1>${esc(employee.fullName)}</h1><p><i class="fa-regular fa-calendar-days"></i> ${leave ? t("إجازة اليوم") : schedule ? `${t("جدول دوام")} ${esc(localizeStored(schedule.dayName))}` : t("لا يوجد جدول منشور")}</p></div></section><section class="today-card"><header><div><span>${leave ? t("إجازة اليوم") : t("جدول الدوام")}</span><h2>${leave ? leaveTypeText(leave) : schedule ? `${esc(localizeStored(schedule.dayName))} · ${schedule.dateKey}` : t("بانتظار نشر الجدول")}</h2></div><i class="${leave ? "fa-solid fa-umbrella-beach" : "fa-regular fa-calendar-check"}"></i></header><div class="shifts">${leave ? leaveCard(leave) : items.length ? items.map(shiftCard).join("") : `<div class="no-shifts"><i class="fa-regular fa-calendar-xmark"></i><p>${t("لا توجد فترات دوام منشورة لك حاليًا.")}</p></div>`}</div></section><section class="fingerprint-area"><button id="fingerprint-button"><i class="fa-solid fa-fingerprint"></i></button><h2>${t("اضغط لتسجيل البصمة")}</h2><p id="fingerprint-status">${t("اختر الدخول أو الخروج ثم وجّه الكاميرا للباركود")}</p></section><nav class="bottom-nav"><button data-view="services"><i class="fa-solid fa-grip"></i><span>${t("خدمات")}</span></button><button class="active"><i class="fa-solid fa-fingerprint"></i><span>${t("البصمة")}</span></button><button data-view="notifications"><i class="fa-regular fa-bell"></i><span>${t("إشعارات")}</span></button></nav>`;
   $("#open-settings").onclick = renderSettings;
   $("#fingerprint-button").onclick = openPunchChooser;
   document.querySelectorAll("[data-view]").forEach(button => button.onclick = () => renderUnderDevelopment(button.dataset.view));
@@ -352,28 +374,29 @@ function scanBarcodeFrame() {
   }
   scanFrame = requestAnimationFrame(scanBarcodeFrame);
 }
-function distanceMeters(a, b) {
-  const rad = value => value * Math.PI / 180;
-  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 6371000 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+function showAttendanceProcessing() {
+  $("#portal-modal").innerHTML = `<div class="portal-modal-backdrop attendance-result-backdrop"><section class="attendance-result processing"><div class="attendance-spinner"><i class="fa-solid fa-qrcode"></i></div><span>${t("تسجيل البصمة")}</span><h2>${t("جارٍ تحليل الباركود...")}</h2><p>${language === "en" ? "Please wait a moment" : "يرجى الانتظار لحظة"}</p></section></div>`;
 }
-function currentLocation() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) { reject(new Error(t("الموقع الجغرافي غير متاح على هذا الجهاز."))); return; }
-    navigator.geolocation.getCurrentPosition(position => resolve({ lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy, capturedAt: Date.now() }), error => reject(new Error(error.message || t("اسمح بالوصول إلى موقعك الجغرافي."))), { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-  });
+function showAttendanceResult(type, error = "") {
+  const success = !error;
+  const title = success ? (type === "checkIn" ? t("تم تسجيل بصمة الدخول بنجاح") : t("تم تسجيل بصمة الخروج بنجاح")) : (error || t("تعذر تسجيل البصمة عبر الباركود."));
+  $("#portal-modal").innerHTML = `<div class="portal-modal-backdrop attendance-result-backdrop"><section class="attendance-result ${success ? "success" : "failed"}"><div class="attendance-result-icon"><i class="fa-solid ${success ? "fa-check" : "fa-xmark"}"></i></div><span>${t("تسجيل البصمة")}</span><h2>${title}</h2><p>${success ? (type === "checkIn" ? (language === "en" ? "Welcome, your attendance has been saved." : "أهلاً بك، تم حفظ حضورك بنجاح.") : (language === "en" ? "Have a good day, your checkout has been saved." : "تم حفظ انصرافك بنجاح.")) : ""}</p><button type="button" class="attendance-result-close">${t("إغلاق")}</button></section></div>`;
+  $(".attendance-result-close").onclick = () => { $("#portal-modal").innerHTML = ""; };
 }
 async function verifyScannedBarcode(value) {
   const message = $("#scan-message");
   const place = matchingPlace(value);
   if (!place) { message.textContent = t("هذا الباركود لا يخص فرع دوامك الحالي."); scanFrame = requestAnimationFrame(scanBarcodeFrame); return; }
   scanBusy = true;
-  message.textContent = language === "en" ? "QR code scanned. Recording attendance..." : "تمت قراءة الباركود، جاري تسجيل البصمة...";
+  const type = pendingPunchType;
+  closeScanner();
+  showAttendanceProcessing();
   try {
+    await wait(1000);
     await recordVerifiedAttendance(place);
-    closeScanner();
-  } catch (error) { scanBusy = false; message.textContent = error.message || t("تعذر التحقق من مكان البصمة."); scanFrame = requestAnimationFrame(scanBarcodeFrame); }
+    showAttendanceResult(type);
+  } catch (error) { showAttendanceResult(type, error.message || t("تعذر تسجيل البصمة عبر الباركود.")); }
 }
 async function recordVerifiedAttendance(place) {
   const today = dateKey(new Date());
