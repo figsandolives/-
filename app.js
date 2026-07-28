@@ -1,7 +1,7 @@
 import { CONFIG } from "./config.js?v=20260725-phone-login";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-import { getDatabase, ref, get, set, push, update } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
+import { getDatabase, ref, get, set, push, update, onValue } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
 const firebaseApp = initializeApp(CONFIG.firebase);
@@ -19,8 +19,12 @@ const defaultFingerprintPlaces = [
 ];
 let employee = null;
 let publishedSchedules = [];
+let employeeNotifications = [];
 let fingerprintPlaces = [];
 let employeeLeaves = [];
+let stopNotificationListener = null;
+let notificationListenerReady = false;
+let tomorrowPopupShown = false;
 let pendingPunchType = null;
 let scanStream = null;
 let scanFrame = null;
@@ -73,6 +77,17 @@ const en = {
   "خدمات": "Services",
   "البصمة": "Attendance",
   "إشعارات": "Notifications",
+  "لا توجد إشعارات": "No notifications",
+  "ستظهر هنا إشعارات الدوام والملاحظات الجديدة.": "New schedule and note notifications will appear here.",
+  "دوامك غداً": "Your shift tomorrow",
+  "تفاصيل دوامك": "Your shift details",
+  "ملاحظات": "Notes",
+  "تم نشر جدول جديد": "A new schedule was published",
+  "تفعيل إشعارات الجهاز": "Enable device notifications",
+  "الإشعارات مفعّلة": "Device notifications are enabled",
+  "فعّل الإشعارات لتصلك تنبيهات الجدول على جهازك.": "Enable notifications to receive schedule alerts on your device.",
+  "تعذر تفعيل الإشعارات من إعدادات المتصفح.": "Notifications could not be enabled. Check your browser settings.",
+  "جديد": "New",
   "بوابة الموظف": "Employee portal",
   "قيد التطوير": "Coming soon",
   "إغلاق": "Close",
@@ -160,7 +175,8 @@ function applyLanguage() {
   $("#portal-modal").innerHTML = "";
   if (employee) {
     if (currentView === "settings") renderSettings();
-    else if (currentView === "services" || currentView === "notifications") renderUnderDevelopment(currentView);
+    else if (currentView === "services") renderServices();
+    else if (currentView === "notifications") renderNotifications();
     else renderHome();
   }
 }
@@ -235,7 +251,7 @@ onAuthStateChanged(auth, async user => {
     localStorage.setItem("rakaezEmployeeSession", employee.id);
     sessionStorage.removeItem("rakaezEmployeeSession");
     await loadPortalData();
-    renderHome();
+    renderInitialPortal();
   } catch { localStorage.removeItem("rakaezEmployeeSession"); sessionStorage.removeItem("rakaezEmployeeSession"); showLogin(); }
 });
 
@@ -259,17 +275,95 @@ async function loginWithPhone(event) {
     if (!employee) throw new Error(t("رقم الهاتف غير مرتبط بملف موظف."));
     localStorage.setItem("rakaezEmployeeSession", employee.id);
     await loadPortalData();
-    renderHome();
+    renderInitialPortal();
   } catch (error) { employee = null; message.textContent = error.message || t("تعذر تسجيل الدخول."); }
   finally { button.disabled = false; }
 }
 
 async function loadPortalData() {
-  const [schedules, places, leaves] = await Promise.all([get(ref(db, `${ROOT}/schedules`)), get(ref(db, `${ROOT}/fingerprintPlaces`)), get(ref(db, `${ROOT}/leaves`))]);
+  const [schedules, places, leaves, notifications] = await Promise.all([get(ref(db, `${ROOT}/schedules`)), get(ref(db, `${ROOT}/fingerprintPlaces`)), get(ref(db, `${ROOT}/leaves`)), get(ref(db, `${ROOT}/employeeNotifications/${employee.id}`))]);
   publishedSchedules = Object.values(schedules.val() || {}).filter(item => item.published).sort((a, b) => String(a.dateKey).localeCompare(String(b.dateKey)));
+  employeeNotifications = Object.values(notifications.val() || {}).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
   const configuredPlaces = Object.entries(places.val() || {}).map(([id, value]) => ({ id, ...value }));
   fingerprintPlaces = configuredPlaces.length ? configuredPlaces : defaultFingerprintPlaces;
   employeeLeaves = Object.entries(leaves.val() || {}).map(([id, value]) => ({ id, ...value })).filter(leave => leave.employeeId === employee?.id);
+  updateAppBadge();
+  bindNotificationListener();
+}
+function renderInitialPortal() {
+  const requestedView = new URLSearchParams(location.search).get("view");
+  if (requestedView === "notifications") renderNotifications();
+  else renderHome();
+}
+function unreadNotifications() { return employeeNotifications.filter(item => !item.read); }
+async function updateAppBadge() {
+  const count = unreadNotifications().length;
+  try {
+    if (count && navigator.setAppBadge) await navigator.setAppBadge(count);
+    else if (!count && navigator.clearAppBadge) await navigator.clearAppBadge();
+  } catch {}
+}
+function notificationBadge() {
+  const count = unreadNotifications().length;
+  return count ? `<em class="notification-badge" aria-label="${count}">${count > 9 ? "9+" : count}</em>` : "";
+}
+function bindNotificationListener() {
+  stopNotificationListener?.();
+  notificationListenerReady = false;
+  stopNotificationListener = onValue(ref(db, `${ROOT}/employeeNotifications/${employee.id}`), snap => {
+    const previousIds = new Set(employeeNotifications.map(item => `${item.id}:${item.createdAt}`));
+    const next = Object.values(snap.val() || {}).sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    const fresh = next.find(item => !previousIds.has(`${item.id}:${item.createdAt}`));
+    employeeNotifications = next;
+    updateAppBadge();
+    if (currentView === "notifications") renderNotifications(false);
+    else refreshVisibleNotificationBadge();
+    if (notificationListenerReady && fresh) {
+      showDeviceNotification(fresh);
+      if (isTomorrowNotification(fresh)) showTomorrowSchedulePopup(fresh);
+    }
+    notificationListenerReady = true;
+  });
+}
+function refreshVisibleNotificationBadge() {
+  document.querySelectorAll(".notification-badge").forEach(node => node.remove());
+  const button = document.querySelector('[data-view="notifications"]');
+  if (button && unreadNotifications().length) button.insertAdjacentHTML("beforeend", notificationBadge());
+}
+function isToday(timestamp) { return dateKey(new Date(Number(timestamp))) === dateKey(new Date()); }
+function tomorrowKey() { const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); return dateKey(tomorrow); }
+function isTomorrowNotification(item) { return item?.type === "schedule" && item.scheduleDate === tomorrowKey() && isToday(item.publishedAt || item.createdAt); }
+function tomorrowNotification() { return employeeNotifications.find(isTomorrowNotification) || null; }
+function translatedTasks(item) {
+  if (language !== "en") return item.tasks || [];
+  return (item.taskTranslations || []).map(value => value?.text || value).filter(Boolean);
+}
+function notificationShiftCard(item, index) {
+  return `<article class="notification-shift"><b>${t("الدوام")} ${index + 1}</b><div><span><i class="fa-regular fa-clock"></i>${formatTime(item.from)} — ${formatTime(item.to)}</span><span><i class="fa-solid fa-location-dot"></i>${branchName(item.branchId)}</span></div>${translatedTasks(item).length ? `<p><i class="fa-regular fa-clipboard"></i>${translatedTasks(item).map(esc).join(" + ")}</p>` : ""}</article>`;
+}
+function notificationNotes(item) {
+  const values = (item.notes || []).map(note => language === "en" ? (note.translation || note.text) : note.text).filter(Boolean);
+  return values.length ? `<section class="notification-notes"><b><i class="fa-regular fa-message"></i>${t("ملاحظات")}</b>${values.map(value => `<p>${esc(value)}</p>`).join("")}</section>` : "";
+}
+function notificationDetails(item) {
+  return `<div class="notification-details">${(item.shifts || []).map(notificationShiftCard).join("")}${notificationNotes(item)}</div>`;
+}
+function showTomorrowSchedulePopup(item = tomorrowNotification()) {
+  if (!item || tomorrowPopupShown) return;
+  tomorrowPopupShown = true;
+  $("#portal-modal").innerHTML = `<div class="portal-modal-backdrop schedule-alert-backdrop"><section class="portal-modal schedule-alert-modal" role="dialog" aria-modal="true"><div class="schedule-alert-icon"><i class="fa-regular fa-bell"></i></div><span>${t("تم نشر جدول جديد")}</span><h2>${t("دوامك غداً")}</h2><p class="schedule-alert-date">${esc(localizeStored(item.dayName || ""))} · ${esc(item.scheduleDate || "")}</p>${notificationDetails(item)}<button type="button" class="schedule-alert-close">${t("إغلاق")}</button></section></div>`;
+  const close = () => $("#portal-modal").innerHTML = "";
+  $(".schedule-alert-close").onclick = close;
+  $(".schedule-alert-backdrop").onclick = event => { if (event.target.classList.contains("schedule-alert-backdrop")) close(); };
+}
+async function showDeviceNotification(item) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const firstShift = item.shifts?.[0];
+  const body = firstShift ? `${formatTime(firstShift.from)} — ${formatTime(firstShift.to)} · ${branchName(firstShift.branchId)}` : t("تفاصيل دوامك");
+  try {
+    const registration = await navigator.serviceWorker?.ready;
+    await registration?.showNotification(t("دوامك غداً"), { body, icon: "fingerprint-icon-192.png", badge: "fingerprint-icon-192.png", tag: item.id, data: { url: "./?view=notifications" } });
+  } catch {}
 }
 function employeeAssignments() {
   const today = dateKey(new Date());
@@ -303,18 +397,54 @@ function renderHome() {
   $("#boot").classList.add("hidden");
   const app = $("#employee-app");
   app.classList.remove("hidden");
-  app.innerHTML = `<button id="open-settings" class="settings-button" aria-label="${t("الإعدادات")}"><i class="fa-solid fa-gear"></i></button><section class="employee-hero"><div class="profile-image">${employee.photoUrl || employee.photoDataUrl ? `<img src="${esc(employee.photoUrl || employee.photoDataUrl)}" alt="">` : `<span>${initials(employee.fullName)}</span>`}</div><div><small>${t("مرحباً بك")}</small><h1>${esc(employee.fullName)}</h1><p><i class="fa-regular fa-calendar-days"></i> ${leave ? t("إجازة اليوم") : schedule ? `${t("جدول دوام")} ${esc(localizeStored(schedule.dayName))}` : t("لا يوجد جدول منشور")}</p></div></section><section class="today-card"><header><div><span>${leave ? t("إجازة اليوم") : t("جدول الدوام")}</span><h2>${leave ? leaveTypeText(leave) : schedule ? `${esc(localizeStored(schedule.dayName))} · ${schedule.dateKey}` : t("بانتظار نشر الجدول")}</h2></div><i class="${leave ? "fa-solid fa-umbrella-beach" : "fa-regular fa-calendar-check"}"></i></header><div class="shifts">${leave ? leaveCard(leave) : items.length ? items.map(shiftCard).join("") : `<div class="no-shifts"><i class="fa-regular fa-calendar-xmark"></i><p>${t("لا توجد فترات دوام منشورة لك حاليًا.")}</p></div>`}</div></section><section class="fingerprint-area"><button id="fingerprint-button"><i class="fa-solid fa-fingerprint"></i></button><h2>${t("اضغط لتسجيل البصمة")}</h2><p id="fingerprint-status">${t("اختر الدخول أو الخروج ثم وجّه الكاميرا للباركود")}</p></section><nav class="bottom-nav"><button data-view="services"><i class="fa-solid fa-grip"></i><span>${t("خدمات")}</span></button><button class="active"><i class="fa-solid fa-fingerprint"></i><span>${t("البصمة")}</span></button><button data-view="notifications"><i class="fa-regular fa-bell"></i><span>${t("إشعارات")}</span></button></nav>`;
+  app.innerHTML = `<button id="open-settings" class="settings-button" aria-label="${t("الإعدادات")}"><i class="fa-solid fa-gear"></i></button><section class="employee-hero"><div class="profile-image">${employee.photoUrl || employee.photoDataUrl ? `<img src="${esc(employee.photoUrl || employee.photoDataUrl)}" alt="">` : `<span>${initials(employee.fullName)}</span>`}</div><div><small>${t("مرحباً بك")}</small><h1>${esc(employee.fullName)}</h1><p><i class="fa-regular fa-calendar-days"></i> ${leave ? t("إجازة اليوم") : schedule ? `${t("جدول دوام")} ${esc(localizeStored(schedule.dayName))}` : t("لا يوجد جدول منشور")}</p></div></section><section class="today-card"><header><div><span>${leave ? t("إجازة اليوم") : t("جدول الدوام")}</span><h2>${leave ? leaveTypeText(leave) : schedule ? `${esc(localizeStored(schedule.dayName))} · ${schedule.dateKey}` : t("بانتظار نشر الجدول")}</h2></div><i class="${leave ? "fa-solid fa-umbrella-beach" : "fa-regular fa-calendar-check"}"></i></header><div class="shifts">${leave ? leaveCard(leave) : items.length ? items.map(shiftCard).join("") : `<div class="no-shifts"><i class="fa-regular fa-calendar-xmark"></i><p>${t("لا توجد فترات دوام منشورة لك حاليًا.")}</p></div>`}</div></section><section class="fingerprint-area"><button id="fingerprint-button"><i class="fa-solid fa-fingerprint"></i></button><h2>${t("اضغط لتسجيل البصمة")}</h2><p id="fingerprint-status">${t("اختر الدخول أو الخروج ثم وجّه الكاميرا للباركود")}</p></section>${bottomNavigation("home")}`;
   app.querySelector(".employee-hero h1").textContent=employeeName();
   const avatar=app.querySelector(".profile-image span");if(avatar)avatar.textContent=initials(employeeName());
   $("#open-settings").onclick = renderSettings;
   $("#fingerprint-button").onclick = openPunchChooser;
-  document.querySelectorAll("[data-view]").forEach(button => button.onclick = () => renderUnderDevelopment(button.dataset.view));
+  bindBottomNavigation();
+  window.setTimeout(() => showTomorrowSchedulePopup(), 0);
 }
-function renderUnderDevelopment(view) {
-  currentView = view;
-  const title = view === "services" ? t("خدمات") : t("إشعارات");
-  $("#employee-app").innerHTML = `<div class="inner-page under-development"><header><button id="back-home">${language === "ar" ? "→" : "←"}</button><div><small>${t("بوابة الموظف")}</small><h1>${title}</h1></div></header><section><i class="fa-solid fa-wand-magic-sparkles"></i><h2>${t("قيد التطوير")}</h2></section></div>`;
-  $("#back-home").onclick = renderHome;
+function bottomNavigation(active) {
+  return `<nav class="bottom-nav"><button data-view="services" class="${active === "services" ? "active" : ""}"><i class="fa-solid fa-grip"></i><span>${t("خدمات")}</span></button><button data-view="home" class="${active === "home" ? "active" : ""}"><i class="fa-solid fa-fingerprint"></i><span>${t("البصمة")}</span></button><button data-view="notifications" class="${active === "notifications" ? "active" : ""}"><i class="fa-regular fa-bell"></i><span>${t("إشعارات")}</span>${notificationBadge()}</button></nav>`;
+}
+function bindBottomNavigation() {
+  document.querySelectorAll("[data-view]").forEach(button => button.onclick = () => {
+    if (button.dataset.view === "home") renderHome();
+    else if (button.dataset.view === "services") renderServices();
+    else renderNotifications();
+  });
+}
+function renderServices() {
+  currentView = "services";
+  $("#employee-app").innerHTML = `<div class="inner-page under-development nav-page"><header><div><small>${t("بوابة الموظف")}</small><h1>${t("خدمات")}</h1></div></header><section><i class="fa-solid fa-wand-magic-sparkles"></i><h2>${t("قيد التطوير")}</h2></section></div>${bottomNavigation("services")}`;
+  bindBottomNavigation();
+}
+async function markNotificationsRead() {
+  const unread = unreadNotifications();
+  if (!unread.length) return;
+  employeeNotifications = employeeNotifications.map(item => ({ ...item, read: true }));
+  updateAppBadge();
+  await Promise.all(unread.map(item => update(ref(db, `${ROOT}/employeeNotifications/${employee.id}/${item.id}`), { read: true, readAt: Date.now() }).catch(() => {})));
+}
+function notificationPermissionCard() {
+  if (!("Notification" in window)) return "";
+  const enabled = Notification.permission === "granted";
+  return `<section class="notification-permission ${enabled ? "enabled" : ""}"><i class="fa-solid ${enabled ? "fa-circle-check" : "fa-bell"}"></i><div><b>${enabled ? t("الإشعارات مفعّلة") : t("تفعيل إشعارات الجهاز")}</b><p>${enabled ? t("ستظهر هنا إشعارات الدوام والملاحظات الجديدة.") : t("فعّل الإشعارات لتصلك تنبيهات الجدول على جهازك.")}</p></div>${enabled ? "" : `<button id="enable-notifications">${t("تفعيل إشعارات الجهاز")}</button>`}</section>`;
+}
+function renderNotifications(markRead = true) {
+  currentView = "notifications";
+  $("#employee-app").innerHTML = `<div class="inner-page notifications-page nav-page"><header><div><small>${t("بوابة الموظف")}</small><h1>${t("إشعارات")}</h1></div></header>${notificationPermissionCard()}<section class="notifications-list">${employeeNotifications.length ? employeeNotifications.map(item => `<article class="notification-card ${item.read ? "" : "unread"}"><header><div class="notification-card-icon"><i class="fa-regular fa-calendar-check"></i></div><div><span>${item.read ? "" : t("جديد")}</span><h2>${t("تفاصيل دوامك")}</h2><p>${esc(localizeStored(item.dayName || ""))} · ${esc(item.scheduleDate || "")}</p></div></header>${notificationDetails(item)}</article>`).join("") : `<div class="empty-notifications"><i class="fa-regular fa-bell-slash"></i><h2>${t("لا توجد إشعارات")}</h2><p>${t("ستظهر هنا إشعارات الدوام والملاحظات الجديدة.")}</p></div>`}</section></div>${bottomNavigation("notifications")}`;
+  bindBottomNavigation();
+  $("#enable-notifications")?.addEventListener("click", enableDeviceNotifications);
+  if (markRead) window.setTimeout(markNotificationsRead, 350);
+}
+async function enableDeviceNotifications() {
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") throw new Error();
+    renderNotifications(false);
+  } catch { showToast(t("تعذر تفعيل الإشعارات من إعدادات المتصفح.")); }
 }
 
 function openPunchChooser() {
@@ -433,7 +563,7 @@ function renderSettings() {
 function bindSettingsEvents() {
   bindNumeric($("#settings-form"));
   $("#back-home").onclick = renderHome;
-  $("#portal-logout").onclick = () => { localStorage.removeItem("rakaezEmployeeSession"); sessionStorage.removeItem("rakaezEmployeeSession"); employee = null; showLogin(); };
+  $("#portal-logout").onclick = () => { stopNotificationListener?.(); stopNotificationListener = null; localStorage.removeItem("rakaezEmployeeSession"); sessionStorage.removeItem("rakaezEmployeeSession"); employee = null; employeeNotifications = []; tomorrowPopupShown = false; updateAppBadge(); showLogin(); };
   $("#settings-photo").onchange = event => { const file = event.target.files[0]; if (file) $(".settings-photo span").innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`; };
   $("#add-alt-phone").onclick = () => { $("#settings-alternates").insertAdjacentHTML("beforeend", phoneField("", "+965", $("#settings-alternates").children.length, "alternate")); bindSettingRows(); };
   $("#add-relative").onclick = () => { $("#settings-relatives").insertAdjacentHTML("beforeend", relativeRow({}, $("#settings-relatives").children.length)); bindSettingRows(); };

@@ -1,8 +1,9 @@
-const CACHE_NAME = "rakaez-fingerprint-v4-employee-names";
+const CACHE_NAME = "rakaez-fingerprint-v5-notifications";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./style.css",
+  "./notifications.css",
   "./login-phone.css",
   "./app.js",
   "./config.js",
@@ -25,4 +26,16 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const notificationUrl = new URL("./?view=notifications", self.location.href).href;
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(windows => {
+      const existing = windows[0];
+      if (existing) return existing.focus().then(() => existing.navigate(notificationUrl));
+      return clients.openWindow(notificationUrl);
+    })
+  );
 });
