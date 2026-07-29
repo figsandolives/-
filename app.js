@@ -80,7 +80,10 @@ const en = {
   "لا توجد إشعارات": "No notifications",
   "ستظهر هنا إشعارات الدوام والملاحظات الجديدة.": "New schedule and note notifications will appear here.",
   "دوامك غداً": "Your shift tomorrow",
+  "إجازتك غداً": "Your leave tomorrow",
+  "إجازتك ودوامك غداً": "Your leave and shift tomorrow",
   "تفاصيل دوامك": "Your shift details",
+  "تم تسجيل إجازتك في الجدول": "Your leave was added to the schedule",
   "ملاحظات": "Notes",
   "تم نشر جدول جديد": "A new schedule was published",
   "تفعيل إشعارات الجهاز": "Enable device notifications",
@@ -345,13 +348,22 @@ function notificationNotes(item) {
   const values = (item.notes || []).map(note => language === "en" ? (note.translation || note.text) : note.text).filter(Boolean);
   return values.length ? `<section class="notification-notes"><b><i class="fa-regular fa-message"></i>${t("ملاحظات")}</b>${values.map(value => `<p>${esc(value)}</p>`).join("")}</section>` : "";
 }
+function notificationLeaveCard(item) {
+  if (!item?.leave) return "";
+  const leave = item.leave;
+  return `<section class="notification-leave"><i class="fa-solid fa-umbrella-beach"></i><div><b>${leaveTypeText(leave)}</b>${leave.duration === "half" ? `<small>${t("نصف يوم")}</small>` : ""}</div></section>`;
+}
+function notificationTitle(item) {
+  if (!item?.leave) return t("تفاصيل دوامك");
+  return t(item.leave.duration === "half" && item.shifts?.length ? "إجازتك ودوامك غداً" : "إجازتك غداً");
+}
 function notificationDetails(item) {
-  return `<div class="notification-details">${(item.shifts || []).map(notificationShiftCard).join("")}${notificationNotes(item)}</div>`;
+  return `<div class="notification-details">${notificationLeaveCard(item)}${(item.shifts || []).map(notificationShiftCard).join("")}${notificationNotes(item)}</div>`;
 }
 function showTomorrowSchedulePopup(item = tomorrowNotification()) {
   if (!item || tomorrowPopupShown) return;
   tomorrowPopupShown = true;
-  $("#portal-modal").innerHTML = `<div class="portal-modal-backdrop schedule-alert-backdrop"><section class="portal-modal schedule-alert-modal" role="dialog" aria-modal="true"><div class="schedule-alert-icon"><i class="fa-regular fa-bell"></i></div><span>${t("تم نشر جدول جديد")}</span><h2>${t("دوامك غداً")}</h2><p class="schedule-alert-date">${esc(localizeStored(item.dayName || ""))} · ${esc(item.scheduleDate || "")}</p>${notificationDetails(item)}<button type="button" class="schedule-alert-close">${t("إغلاق")}</button></section></div>`;
+  $("#portal-modal").innerHTML = `<div class="portal-modal-backdrop schedule-alert-backdrop"><section class="portal-modal schedule-alert-modal ${item.leave ? "leave-alert" : ""}" role="dialog" aria-modal="true"><div class="schedule-alert-icon"><i class="fa-solid ${item.leave ? "fa-umbrella-beach" : "fa-bell"}"></i></div><span>${t(item.leave ? "تم تسجيل إجازتك في الجدول" : "تم نشر جدول جديد")}</span><h2>${notificationTitle(item)}</h2><p class="schedule-alert-date">${esc(localizeStored(item.dayName || ""))} · ${esc(item.scheduleDate || "")}</p>${notificationDetails(item)}<button type="button" class="schedule-alert-close">${t("إغلاق")}</button></section></div>`;
   const close = () => $("#portal-modal").innerHTML = "";
   $(".schedule-alert-close").onclick = close;
   $(".schedule-alert-backdrop").onclick = event => { if (event.target.classList.contains("schedule-alert-backdrop")) close(); };
@@ -359,10 +371,12 @@ function showTomorrowSchedulePopup(item = tomorrowNotification()) {
 async function showDeviceNotification(item) {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   const firstShift = item.shifts?.[0];
-  const body = firstShift ? `${formatTime(firstShift.from)} — ${formatTime(firstShift.to)} · ${branchName(firstShift.branchId)}` : t("تفاصيل دوامك");
+  const leaveText = item.leave ? `${leaveTypeText(item.leave)}${item.leave.duration === "half" ? ` · ${t("نصف يوم")}` : ""}` : "";
+  const shiftText = firstShift ? `${formatTime(firstShift.from)} — ${formatTime(firstShift.to)} · ${branchName(firstShift.branchId)}` : "";
+  const body = [leaveText, shiftText].filter(Boolean).join(" · ") || t("تفاصيل دوامك");
   try {
     const registration = await navigator.serviceWorker?.ready;
-    await registration?.showNotification(t("دوامك غداً"), { body, icon: "fingerprint-icon-192.png", badge: "fingerprint-icon-192.png", tag: item.id, data: { url: "./?view=notifications" } });
+    await registration?.showNotification(notificationTitle(item), { body, icon: "fingerprint-icon-192.png", badge: "fingerprint-icon-192.png", tag: item.id, data: { url: "./?view=notifications" } });
   } catch {}
 }
 function employeeAssignments() {
@@ -434,7 +448,7 @@ function notificationPermissionCard() {
 }
 function renderNotifications(markRead = true) {
   currentView = "notifications";
-  $("#employee-app").innerHTML = `<div class="inner-page notifications-page nav-page"><header><div><small>${t("بوابة الموظف")}</small><h1>${t("إشعارات")}</h1></div></header>${notificationPermissionCard()}<section class="notifications-list">${employeeNotifications.length ? employeeNotifications.map(item => `<article class="notification-card ${item.read ? "" : "unread"}"><header><div class="notification-card-icon"><i class="fa-regular fa-calendar-check"></i></div><div><span>${item.read ? "" : t("جديد")}</span><h2>${t("تفاصيل دوامك")}</h2><p>${esc(localizeStored(item.dayName || ""))} · ${esc(item.scheduleDate || "")}</p></div></header>${notificationDetails(item)}</article>`).join("") : `<div class="empty-notifications"><i class="fa-regular fa-bell-slash"></i><h2>${t("لا توجد إشعارات")}</h2><p>${t("ستظهر هنا إشعارات الدوام والملاحظات الجديدة.")}</p></div>`}</section></div>${bottomNavigation("notifications")}`;
+  $("#employee-app").innerHTML = `<div class="inner-page notifications-page nav-page"><header><div><small>${t("بوابة الموظف")}</small><h1>${t("إشعارات")}</h1></div></header>${notificationPermissionCard()}<section class="notifications-list">${employeeNotifications.length ? employeeNotifications.map(item => `<article class="notification-card ${item.read ? "" : "unread"} ${item.leave ? "leave-notification" : ""}"><header><div class="notification-card-icon"><i class="fa-solid ${item.leave ? "fa-umbrella-beach" : "fa-calendar-check"}"></i></div><div><span>${item.read ? "" : t("جديد")}</span><h2>${notificationTitle(item)}</h2><p>${esc(localizeStored(item.dayName || ""))} · ${esc(item.scheduleDate || "")}</p></div></header>${notificationDetails(item)}</article>`).join("") : `<div class="empty-notifications"><i class="fa-regular fa-bell-slash"></i><h2>${t("لا توجد إشعارات")}</h2><p>${t("ستظهر هنا إشعارات الدوام والملاحظات الجديدة.")}</p></div>`}</section></div>${bottomNavigation("notifications")}`;
   bindBottomNavigation();
   $("#enable-notifications")?.addEventListener("click", enableDeviceNotifications);
   if (markRead) window.setTimeout(markNotificationsRead, 350);

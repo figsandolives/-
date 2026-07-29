@@ -1,11 +1,11 @@
-const CACHE_NAME = "rakaez-fingerprint-v5-notifications";
+const CACHE_NAME = "rakaez-fingerprint-v6-leave-notifications";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./style.css",
-  "./notifications.css",
+  "./notifications.css?v=20260728-leave-notifications",
   "./login-phone.css",
-  "./app.js",
+  "./app.js?v=20260728-leave-notifications",
   "./config.js",
   "./fingerprint-icon-192.png",
   "./fingerprint-icon-512.png"

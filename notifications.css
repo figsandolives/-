@@ -17,6 +17,7 @@
 .notification-card header h2{margin:2px 0;font-size:20px}
 .notification-card header p{margin:0;color:var(--muted)}
 .notification-details{display:grid;gap:10px}
+.notification-card.leave-notification{border-color:#b9dfd1;background:linear-gradient(135deg,#fff,#f0fbf6)}.notification-card.leave-notification .notification-card-icon{background:#e5f7ef;color:#16845b}.notification-leave{display:flex;align-items:center;gap:12px;padding:15px;border:1px solid #bfe4d5;border-radius:17px;background:#effaf5;text-align:start}.notification-leave>i{width:42px;height:42px;display:grid;place-items:center;flex:0 0 42px;border-radius:13px;background:#d8f2e7;color:#16845b;font-size:19px}.notification-leave div{display:grid;gap:3px}.notification-leave b{color:#126d4c;font-size:16px}.notification-leave small{color:#8b6717;font-weight:900}.schedule-alert-modal.leave-alert .schedule-alert-icon{background:linear-gradient(135deg,#35bd87,#16845b);box-shadow:0 12px 28px rgba(22,132,91,.25)}
 .notification-shift{padding:15px;border:1px solid #dbeafa;border-radius:17px;background:#f8fbfe;text-align:start}
 .notification-shift>b{display:block;margin-bottom:9px;color:var(--blue)}
 .notification-shift>div{display:flex;flex-wrap:wrap;gap:8px 20px}
