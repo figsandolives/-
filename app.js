@@ -354,10 +354,12 @@ function notificationLeaveCard(item) {
   return `<section class="notification-leave"><i class="fa-solid fa-umbrella-beach"></i><div><b>${leaveTypeText(leave)}</b>${leave.duration === "half" ? `<small>${t("نصف يوم")}</small>` : ""}</div></section>`;
 }
 function notificationTitle(item) {
+  if (item?.type === "attendance_alert") return language === "en" ? "Attendance alert" : "تنبيه الحضور والانصراف";
   if (!item?.leave) return t("تفاصيل دوامك");
   return t(item.leave.duration === "half" && item.shifts?.length ? "إجازتك ودوامك غداً" : "إجازتك غداً");
 }
 function notificationDetails(item) {
+  if (item?.type === "attendance_alert") return `<div class="attendance-alert-message">${esc(item.message || "تنبيه الحضور والانصراف")}</div>`;
   return `<div class="notification-details">${notificationLeaveCard(item)}${(item.shifts || []).map(notificationShiftCard).join("")}${notificationNotes(item)}</div>`;
 }
 function showTomorrowSchedulePopup(item = tomorrowNotification()) {
@@ -370,6 +372,13 @@ function showTomorrowSchedulePopup(item = tomorrowNotification()) {
 }
 async function showDeviceNotification(item) {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
+  if (item?.type === "attendance_alert") {
+    try {
+      const registration = await navigator.serviceWorker?.ready;
+      await registration?.showNotification(notificationTitle(item), { body: item.message || "تنبيه الحضور والانصراف", icon: "fingerprint-icon-192.png", badge: "fingerprint-icon-192.png", tag: item.id, data: { url: "./?view=notifications" } });
+    } catch {}
+    return;
+  }
   const firstShift = item.shifts?.[0];
   const leaveText = item.leave ? `${leaveTypeText(item.leave)}${item.leave.duration === "half" ? ` · ${t("نصف يوم")}` : ""}` : "";
   const shiftText = firstShift ? `${formatTime(firstShift.from)} — ${formatTime(firstShift.to)} · ${branchName(firstShift.branchId)}` : "";
@@ -401,7 +410,10 @@ function leaveCard(leave) { return `<div class="leave-today-card"><i class="fa-s
 function branchName(id) { return t(({ hawalli: "حولي", surra: "حولي", abu_al_hasaniya: "أبو الحصانية", abulhasania: "أبو الحصانية", yarmouk: "اليرموك" })[id] || id || ""); }
 function shiftCard(item, index) {
   const number = index === 0 ? t("الأول") : index === 1 ? t("الثاني") : index + 1;
-  return `<article class="shift-card"><b>${t("الدوام")} ${number}</b><div><span><i class="fa-regular fa-clock"></i><small>${t("الوقت")}</small><strong>${formatTime(item.from)} — ${formatTime(item.to)}</strong></span><span><i class="fa-solid fa-location-dot"></i><small>${t("الفرع")}</small><strong>${branchName(item.branchId)}</strong></span><span><i class="fa-regular fa-clipboard"></i><small>${t("المهام")}</small><strong>${(item.tasks || []).map(task => esc(localizeStored(task))).join(" + ")}</strong></span></div></article>`;
+  const tasks = language === "en"
+    ? (item.taskTranslations || []).map(value => value?.text || value).filter(Boolean)
+    : (item.tasks || []);
+  return `<article class="shift-card"><b>${t("الدوام")} ${number}</b><div><span><i class="fa-regular fa-clock"></i><small>${t("الوقت")}</small><strong>${formatTime(item.from)} — ${formatTime(item.to)}</strong></span><span><i class="fa-solid fa-location-dot"></i><small>${t("الفرع")}</small><strong>${branchName(item.branchId)}</strong></span><span><i class="fa-regular fa-clipboard"></i><small>${t("المهام")}</small><strong>${tasks.map(task => esc(language === "en" ? task : localizeStored(task))).join(" + ")}</strong></span></div></article>`;
 }
 function renderHome() {
   currentView = "home";
@@ -448,7 +460,7 @@ function notificationPermissionCard() {
 }
 function renderNotifications(markRead = true) {
   currentView = "notifications";
-  $("#employee-app").innerHTML = `<div class="inner-page notifications-page nav-page"><header><div><small>${t("بوابة الموظف")}</small><h1>${t("إشعارات")}</h1></div></header>${notificationPermissionCard()}<section class="notifications-list">${employeeNotifications.length ? employeeNotifications.map(item => `<article class="notification-card ${item.read ? "" : "unread"} ${item.leave ? "leave-notification" : ""}"><header><div class="notification-card-icon"><i class="fa-solid ${item.leave ? "fa-umbrella-beach" : "fa-calendar-check"}"></i></div><div><span>${item.read ? "" : t("جديد")}</span><h2>${notificationTitle(item)}</h2><p>${esc(localizeStored(item.dayName || ""))} · ${esc(item.scheduleDate || "")}</p></div></header>${notificationDetails(item)}</article>`).join("") : `<div class="empty-notifications"><i class="fa-regular fa-bell-slash"></i><h2>${t("لا توجد إشعارات")}</h2><p>${t("ستظهر هنا إشعارات الدوام والملاحظات الجديدة.")}</p></div>`}</section></div>${bottomNavigation("notifications")}`;
+  $("#employee-app").innerHTML = `<div class="inner-page notifications-page nav-page"><header><div><small>${t("بوابة الموظف")}</small><h1>${t("إشعارات")}</h1></div></header>${notificationPermissionCard()}<section class="notifications-list">${employeeNotifications.length ? employeeNotifications.map(item => `<article class="notification-card ${item.read ? "" : "unread"} ${item.leave ? "leave-notification" : ""} ${item.type === "attendance_alert" ? "attendance-alert-notification" : ""}"><header><div class="notification-card-icon"><i class="fa-solid ${item.type === "attendance_alert" ? "fa-triangle-exclamation" : item.leave ? "fa-umbrella-beach" : "fa-calendar-check"}"></i></div><div><span>${item.read ? "" : t("جديد")}</span><h2>${notificationTitle(item)}</h2><p>${esc(localizeStored(item.dayName || ""))} · ${esc(item.scheduleDate || "")}</p></div></header>${notificationDetails(item)}</article>`).join("") : `<div class="empty-notifications"><i class="fa-regular fa-bell-slash"></i><h2>${t("لا توجد إشعارات")}</h2><p>${t("ستظهر هنا إشعارات الدوام والملاحظات الجديدة.")}</p></div>`}</section></div>${bottomNavigation("notifications")}`;
   bindBottomNavigation();
   $("#enable-notifications")?.addEventListener("click", enableDeviceNotifications);
   if (markRead) window.setTimeout(markNotificationsRead, 350);
