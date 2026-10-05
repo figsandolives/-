@@ -1,11 +1,11 @@
-const CACHE_NAME = "rakaez-fingerprint-v10-correct-repo";
+const CACHE_NAME = "rakaez-fingerprint-v11-salary-deductions";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./style.css",
-  "./notifications.css?v=20261005-deduction-notifications",
+  "./notifications.css?v=20261005-salary-deductions",
   "./login-phone.css",
-  "./app.js?v=20261005-deduction-notifications",
+  "./app.js?v=20261005-salary-deductions",
   "./config.js",
   "./fingerprint-icon-192.png",
   "./fingerprint-icon-512.png"

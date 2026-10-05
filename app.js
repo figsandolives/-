@@ -356,12 +356,14 @@ function notificationLeaveCard(item) {
   return `<section class="notification-leave"><i class="fa-solid fa-umbrella-beach"></i><div><b>${leaveTypeText(leave)}</b>${leave.duration === "half" ? `<small>${t("نصف يوم")}</small>` : ""}</div></section>`;
 }
 function notificationTitle(item) {
+  if(item?.type==="salary_deduction")return language==="en"?"Salary deduction":"خصم من الراتب";
   if(item?.type==="deduction")return language==="en"?"Salary deduction letter":"كتاب خصم من الراتب";
   if (item?.type === "attendance_alert") return language === "en" ? "Attendance alert" : "تنبيه الحضور والانصراف";
   if (!item?.leave) return t("تفاصيل دوامك");
   return t(item.leave.duration === "half" && item.shifts?.length ? "إجازتك ودوامك غداً" : "إجازتك غداً");
 }
 function notificationDetails(item) {
+  if(item?.type==="salary_deduction")return `<div class="deduction-notification-details"><p>تم خصم مبلغ <b dir="ltr">${esc(item.amount)} د.ك</b> من راتبك</p><p><b>سبب الخصم:</b> ${esc(item.reason)}</p></div>`;
   if(item?.type==="deduction")return `<div class="deduction-notification-details"><p><b>${language==="en"?"Amount:":"المبلغ:"}</b> ${esc(item.amount)} د.ك</p><p><b>${language==="en"?"Reason:":"سبب الخصم:"}</b> ${esc(item.reason)}</p><p><b>${language==="en"?"Deduction letter:":"كتاب الخصم:"}</b></p><div class="deduction-file-actions"><button data-deduction-download="${esc(item.id)}">${language==="en"?"Download PDF":"تحميل PDF"}</button><button data-deduction-share="${esc(item.id)}">${language==="en"?"Share":"مشاركة"}</button></div></div>`;
   if (item?.type === "attendance_alert") return `<div class="attendance-alert-message">${esc(item.message || "تنبيه الحضور والانصراف")}</div>`;
   return `<div class="notification-details">${notificationLeaveCard(item)}${(item.shifts || []).map(notificationShiftCard).join("")}${notificationNotes(item)}</div>`;
@@ -376,10 +378,10 @@ function showTomorrowSchedulePopup(item = tomorrowNotification()) {
 }
 async function showDeviceNotification(item) {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
-  if (item?.type === "attendance_alert" || item?.type === "deduction") {
+  if (item?.type === "attendance_alert" || item?.type === "deduction" || item?.type === "salary_deduction") {
     try {
       const registration = await navigator.serviceWorker?.ready;
-      await registration?.showNotification(notificationTitle(item), { body: item.type==="deduction"?`${item.amount} د.ك · ${item.reason}`:item.message || "تنبيه الحضور والانصراف", icon: "fingerprint-icon-192.png", badge: "fingerprint-icon-192.png", tag: item.id, data: { url: "./?view=notifications" } });
+      await registration?.showNotification(notificationTitle(item), { body: (item.type==="deduction"||item.type==="salary_deduction")?`${item.amount} د.ك · ${item.reason}`:item.message || "تنبيه الحضور والانصراف", icon: "fingerprint-icon-192.png", badge: "fingerprint-icon-192.png", tag: item.id, data: { url: "./?view=notifications" } });
     } catch {}
     return;
   }
