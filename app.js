@@ -20,6 +20,8 @@ const defaultFingerprintPlaces = [
 let employee = null;
 let publishedSchedules = [];
 let employeeNotifications = [];
+let notificationTab="unread";
+let visibleUnreadIds=new Set();
 let fingerprintPlaces = [];
 let employeeLeaves = [];
 let stopNotificationListener = null;
@@ -354,11 +356,13 @@ function notificationLeaveCard(item) {
   return `<section class="notification-leave"><i class="fa-solid fa-umbrella-beach"></i><div><b>${leaveTypeText(leave)}</b>${leave.duration === "half" ? `<small>${t("نصف يوم")}</small>` : ""}</div></section>`;
 }
 function notificationTitle(item) {
+  if(item?.type==="deduction")return language==="en"?"Salary deduction letter":"كتاب خصم من الراتب";
   if (item?.type === "attendance_alert") return language === "en" ? "Attendance alert" : "تنبيه الحضور والانصراف";
   if (!item?.leave) return t("تفاصيل دوامك");
   return t(item.leave.duration === "half" && item.shifts?.length ? "إجازتك ودوامك غداً" : "إجازتك غداً");
 }
 function notificationDetails(item) {
+  if(item?.type==="deduction")return `<div class="deduction-notification-details"><p><b>${language==="en"?"Amount:":"المبلغ:"}</b> ${esc(item.amount)} د.ك</p><p><b>${language==="en"?"Reason:":"سبب الخصم:"}</b> ${esc(item.reason)}</p><p><b>${language==="en"?"Deduction letter:":"كتاب الخصم:"}</b></p><div class="deduction-file-actions"><button data-deduction-download="${esc(item.id)}">${language==="en"?"Download PDF":"تحميل PDF"}</button><button data-deduction-share="${esc(item.id)}">${language==="en"?"Share":"مشاركة"}</button></div></div>`;
   if (item?.type === "attendance_alert") return `<div class="attendance-alert-message">${esc(item.message || "تنبيه الحضور والانصراف")}</div>`;
   return `<div class="notification-details">${notificationLeaveCard(item)}${(item.shifts || []).map(notificationShiftCard).join("")}${notificationNotes(item)}</div>`;
 }
@@ -372,10 +376,10 @@ function showTomorrowSchedulePopup(item = tomorrowNotification()) {
 }
 async function showDeviceNotification(item) {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
-  if (item?.type === "attendance_alert") {
+  if (item?.type === "attendance_alert" || item?.type === "deduction") {
     try {
       const registration = await navigator.serviceWorker?.ready;
-      await registration?.showNotification(notificationTitle(item), { body: item.message || "تنبيه الحضور والانصراف", icon: "fingerprint-icon-192.png", badge: "fingerprint-icon-192.png", tag: item.id, data: { url: "./?view=notifications" } });
+      await registration?.showNotification(notificationTitle(item), { body: item.type==="deduction"?`${item.amount} د.ك · ${item.reason}`:item.message || "تنبيه الحضور والانصراف", icon: "fingerprint-icon-192.png", badge: "fingerprint-icon-192.png", tag: item.id, data: { url: "./?view=notifications" } });
     } catch {}
     return;
   }
@@ -458,12 +462,37 @@ function notificationPermissionCard() {
   const enabled = Notification.permission === "granted";
   return `<section class="notification-permission ${enabled ? "enabled" : ""}"><i class="fa-solid ${enabled ? "fa-circle-check" : "fa-bell"}"></i><div><b>${enabled ? t("الإشعارات مفعّلة") : t("تفعيل إشعارات الجهاز")}</b><p>${enabled ? t("ستظهر هنا إشعارات الدوام والملاحظات الجديدة.") : t("فعّل الإشعارات لتصلك تنبيهات الجدول على جهازك.")}</p></div>${enabled ? "" : `<button id="enable-notifications">${t("تفعيل إشعارات الجهاز")}</button>`}</section>`;
 }
-function renderNotifications(markRead = true) {
+function notificationTabItems(tab=notificationTab){
+  return [...employeeNotifications].filter(item=>tab==="unread"?(!item.read||visibleUnreadIds.has(item.id)):tab==="schedules"?item.type==="schedule":item.type!=="schedule").sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+}
+function renderNotifications(resetTab = true) {
+  if(resetTab){notificationTab="unread";visibleUnreadIds=new Set();}
+  if(notificationTab==="unread")employeeNotifications.filter(item=>!item.read).forEach(item=>visibleUnreadIds.add(item.id));
+  const items=notificationTabItems();
   currentView = "notifications";
-  $("#employee-app").innerHTML = `<div class="inner-page notifications-page nav-page"><header><div><small>${t("بوابة الموظف")}</small><h1>${t("إشعارات")}</h1></div></header>${notificationPermissionCard()}<section class="notifications-list">${employeeNotifications.length ? employeeNotifications.map(item => `<article class="notification-card ${item.read ? "" : "unread"} ${item.leave ? "leave-notification" : ""} ${item.type === "attendance_alert" ? "attendance-alert-notification" : ""}"><header><div class="notification-card-icon"><i class="fa-solid ${item.type === "attendance_alert" ? "fa-triangle-exclamation" : item.leave ? "fa-umbrella-beach" : "fa-calendar-check"}"></i></div><div><span>${item.read ? "" : t("جديد")}</span><h2>${notificationTitle(item)}</h2><p>${esc(localizeStored(item.dayName || ""))} · ${esc(item.scheduleDate || "")}</p></div></header>${notificationDetails(item)}</article>`).join("") : `<div class="empty-notifications"><i class="fa-regular fa-bell-slash"></i><h2>${t("لا توجد إشعارات")}</h2><p>${t("ستظهر هنا إشعارات الدوام والملاحظات الجديدة.")}</p></div>`}</section></div>${bottomNavigation("notifications")}`;
+  $("#employee-app").innerHTML = `<div class="inner-page notifications-page nav-page"><header><div><small>${t("بوابة الموظف")}</small><h1>${t("إشعارات")}</h1></div></header><nav class="notification-tabs">${[["unread","غير مقروء","Unread"],["previous","الإشعارات السابقة","Past notifications"],["schedules","الدوامات السابقة","Past schedules"]].map(([key,ar,en])=>`<button data-notification-tab="${key}" class="${notificationTab===key?"active":""}">${language==="en"?en:ar}</button>`).join("")}</nav>${notificationPermissionCard()}<section class="notifications-list">${items.length ? items.map(item => `<article class="notification-card ${item.read ? "" : "unread"} ${item.leave ? "leave-notification" : ""} ${item.type === "attendance_alert" ? "attendance-alert-notification" : ""}"><header><div class="notification-card-icon"><i class="fa-solid ${item.type === "attendance_alert" ? "fa-triangle-exclamation" : item.leave ? "fa-umbrella-beach" : "fa-calendar-check"}"></i></div><div><span>${item.read ? "" : t("جديد")}</span><h2>${notificationTitle(item)}</h2><p>${esc(localizeStored(item.dayName || ""))} · ${esc(item.scheduleDate || "")}</p></div></header>${notificationDetails(item)}</article>`).join("") : `<div class="empty-notifications"><i class="fa-regular fa-bell-slash"></i><h2>${notificationTab==="unread"?(language==="en"?"No new notifications":"لا توجد إشعارات جديدة"):t("لا توجد إشعارات")}</h2><p>${language==="en"?"Please go to Past notifications or Past schedules to view earlier items.":"يرجى الانتقال للإشعارات السابقة أو الدوامات السابقة للاطلاع على كل ما سبق."}</p></div>`}</section></div>${bottomNavigation("notifications")}`;
   bindBottomNavigation();
   $("#enable-notifications")?.addEventListener("click", enableDeviceNotifications);
-  if (markRead) window.setTimeout(markNotificationsRead, 350);
+  document.querySelectorAll("[data-notification-tab]").forEach(button=>button.onclick=()=>{notificationTab=button.dataset.notificationTab;visibleUnreadIds=new Set();renderNotifications(false);});
+  document.querySelectorAll("[data-deduction-download],[data-deduction-share]").forEach(button=>button.onclick=()=>openDeductionFile(button));
+  const visibleUnread=items.filter(item=>!item.read);
+  // Keep the visible unread cards until the next visit or tab change.
+  if(visibleUnread.length){
+
+    Promise.all(visibleUnread.map(item=>update(ref(db,`${ROOT}/employeeNotifications/${employee.id}/${item.id}`),{read:true,readAt:Date.now()}).then(()=>{item.read=true;}).catch(()=>{})));
+  }
+}
+async function openDeductionFile(button){
+  const id=button.dataset.deductionDownload||button.dataset.deductionShare,item=employeeNotifications.find(item=>item.id===id);
+  if(!item)return;button.disabled=true;
+  try{
+    const snapshot=await get(ref(db,`${ROOT}/deductionFiles/${String(item.id).replace(/^deduction-/,"")}`));
+    const dataUrl=snapshot.val()?.dataUrl;
+    if(!dataUrl?.startsWith("data:application/pdf"))throw new Error("تعذر تحميل ملف الكتاب.");
+    const blob=await (await fetch(dataUrl)).blob(),file=new File([blob],item.pdfFilename||"deduction.pdf",{type:"application/pdf"});
+    if(button.dataset.deductionShare&&navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:notificationTitle(item)});}
+    else {const url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+  }catch(error){if(error.name!=="AbortError")showToast(error.message||"تعذر تحميل الملف.");}finally{button.disabled=false;}
 }
 async function enableDeviceNotifications() {
   try {
