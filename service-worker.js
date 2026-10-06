@@ -1,4 +1,4 @@
-const CACHE_NAME = "rakaez-fingerprint-v15-portal-update";
+const CACHE_NAME = "rakaez-fingerprint-v16-portal-update";
 const APP_SHELL = [
   "./services.css?v=20261006-portal-update",
   "./my-deductions.js?v=20261006-my-deductions",
@@ -27,7 +27,8 @@ self.addEventListener("activate", event => {
     // Existing installed apps need to load the document that references the new modules.
     if (oldKeys.length) {
       const windows = await self.clients.matchAll({type:"window"});
-      await Promise.all(windows.map(client => client.navigate(client.url).catch(() => {})));
+      // Do not await navigation: its fetch waits for activation to finish.
+      windows.forEach(client => { client.navigate(client.url).catch(() => {}); });
     }
   })());
 });
