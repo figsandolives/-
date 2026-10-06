@@ -355,6 +355,20 @@ function notificationLeaveCard(item) {
   const leave = item.leave;
   return `<section class="notification-leave"><i class="fa-solid fa-umbrella-beach"></i><div><b>${leaveTypeText(leave)}</b>${leave.duration === "half" ? `<small>${t("نصف يوم")}</small>` : ""}</div></section>`;
 }
+function notificationEnglishDigits(value){return String(value||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));}
+function attendanceNotificationMessage(item){
+ if(language!=='en')return item.message||'تنبيه الحضور والانصراف';
+ if(item.messageEn)return item.messageEn;
+ const message=notificationEnglishDigits(item.message),kind=item.alertKind||(message.includes('دخول')?'missing_checkin':message.includes('خروج')?'missing_checkout':message.includes('تأخرت')?'late':'early');
+ const duration=message.match(/(\d+)\s*ساعة/)?.[1],minutes=message.match(/(\d+)\s*دقيقة/)?.[1],time=[duration?`${duration} hour(s)`:'',minutes?`${minutes} minute(s)`:''].filter(Boolean).join(' and ');
+ const text=kind==='missing_checkin'?'You did not check in today.':kind==='missing_checkout'?'You did not check out today.':kind==='late'?`You arrived late today${time?' by '+time:''}.`:`You left early today${time?' by '+time:''}.`;
+ return `Notice: ${text} Please avoid repeating this to prevent a salary deduction.`;
+}
+function notificationDeductionReason(item){
+ if(language!=='en')return item.reason||'';if(item.reasonEn)return item.reasonEn;
+ return notificationEnglishDigits(item.reason).replaceAll('عدم القيام ببصمة دخول','Missing check-in').replaceAll('عدم القيام ببصمة خروج','Missing check-out').replaceAll('التأخير بالحضور','Late arrival').replaceAll('المغادرة المبكرة','Early departure').replaceAll('في فرع','at').replaceAll('أبو الحصانية','Abu Al Hasaniya').replaceAll('ابو الحصانية','Abu Al Hasaniya').replaceAll('حولي','Hawalli').replaceAll('اليرموك','Yarmouk').replaceAll('بتاريخ','on').replaceAll('لمدة','for').replaceAll('دقيقة','minute(s)');
+}
+
 function notificationTitle(item) {
   if(item?.type==="salary_deduction")return language==="en"?"Salary deduction":"خصم من الراتب";
   if(item?.type==="deduction")return language==="en"?"Salary deduction letter":"كتاب خصم من الراتب";
@@ -363,9 +377,9 @@ function notificationTitle(item) {
   return t(item.leave.duration === "half" && item.shifts?.length ? "إجازتك ودوامك غداً" : "إجازتك غداً");
 }
 function notificationDetails(item) {
-  if(item?.type==="salary_deduction")return `<div class="deduction-notification-details"><p>تم خصم مبلغ <b dir="ltr">${esc(item.amount)} د.ك</b> من راتبك</p><p><b>سبب الخصم:</b> ${esc(item.reason)}</p></div>`;
+  if(item?.type==="salary_deduction")return `<div class="deduction-notification-details"><p>${language==="en"?`An amount of <b dir="ltr">KWD ${esc(item.amount)}</b> has been deducted from your salary.`:`تم خصم مبلغ <b dir="ltr">${esc(item.amount)} د.ك</b> من راتبك`}</p><p><b>${language==="en"?"Reason:":"سبب الخصم:"}</b> ${esc(notificationDeductionReason(item))}</p></div>`;
   if(item?.type==="deduction")return `<div class="deduction-notification-details"><p><b>${language==="en"?"Amount:":"المبلغ:"}</b> ${esc(item.amount)} د.ك</p><p><b>${language==="en"?"Reason:":"سبب الخصم:"}</b> ${esc(item.reason)}</p><p><b>${language==="en"?"Deduction letter:":"كتاب الخصم:"}</b></p><div class="deduction-file-actions"><button data-deduction-download="${esc(item.id)}">${language==="en"?"Download PDF":"تحميل PDF"}</button><button data-deduction-share="${esc(item.id)}">${language==="en"?"Share":"مشاركة"}</button></div></div>`;
-  if (item?.type === "attendance_alert") return `<div class="attendance-alert-message">${esc(item.message || "تنبيه الحضور والانصراف")}</div>`;
+  if (item?.type === "attendance_alert") return `<div class="attendance-alert-message">${esc(attendanceNotificationMessage(item))}</div>`;
   return `<div class="notification-details">${notificationLeaveCard(item)}${(item.shifts || []).map(notificationShiftCard).join("")}${notificationNotes(item)}</div>`;
 }
 function showTomorrowSchedulePopup(item = tomorrowNotification()) {
@@ -381,7 +395,7 @@ async function showDeviceNotification(item) {
   if (item?.type === "attendance_alert" || item?.type === "deduction" || item?.type === "salary_deduction") {
     try {
       const registration = await navigator.serviceWorker?.ready;
-      await registration?.showNotification(notificationTitle(item), { body: (item.type==="deduction"||item.type==="salary_deduction")?`${item.amount} د.ك · ${item.reason}`:item.message || "تنبيه الحضور والانصراف", icon: "fingerprint-icon-192.png", badge: "fingerprint-icon-192.png", tag: item.id, data: { url: "./?view=notifications" } });
+      await registration?.showNotification(notificationTitle(item), { body: (item.type==="deduction"||item.type==="salary_deduction")?`${language==="en"?"KWD":"د.ك"} ${item.amount} · ${notificationDeductionReason(item)}`:attendanceNotificationMessage(item), icon: "fingerprint-icon-192.png", badge: "fingerprint-icon-192.png", tag: item.id, data: { url: "./?view=notifications" } });
     } catch {}
     return;
   }
