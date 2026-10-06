@@ -1,4 +1,4 @@
-import { renderMyDeductions } from "./my-deductions.js?v=20261006-my-deductions";
+import { renderMyDeductions } from "./my-deductions.js?v=20261006-letter-fix";
 import { CONFIG } from "./config.js?v=20260725-phone-login";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";

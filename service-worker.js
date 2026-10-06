@@ -1,14 +1,14 @@
-const CACHE_NAME = "rakaez-fingerprint-v17-deductions-load";
+const CACHE_NAME = "rakaez-fingerprint-v18-letter-fix";
 const APP_SHELL = [
-  "./services.css?v=20261006-deductions-load",
-  "./my-deductions.js?v=20261006-my-deductions",
-  "./payroll-core.js?v=20261006-my-deductions",
+  "./services.css?v=20261006-letter-fix",
+  "./my-deductions.js?v=20261006-letter-fix",
+  "./payroll-core.js?v=20261006-letter-fix",
   "./",
   "./index.html",
   "./style.css",
-  "./notifications.css?v=20261006-deductions-load",
+  "./notifications.css?v=20261006-letter-fix",
   "./login-phone.css",
-  "./app.js?v=20261006-deductions-load",
+  "./app.js?v=20261006-letter-fix",
   "./config.js",
   "./fingerprint-icon-192.png",
   "./fingerprint-icon-512.png"
