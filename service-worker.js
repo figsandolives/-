@@ -1,11 +1,11 @@
-const CACHE_NAME = "rakaez-fingerprint-v12-notification-language";
+const CACHE_NAME = "rakaez-fingerprint-v13-notification-language";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./style.css",
-  "./notifications.css?v=20261006-notification-language",
+  "./notifications.css?v=20261006-notification-language-2",
   "./login-phone.css",
-  "./app.js?v=20261006-notification-language",
+  "./app.js?v=20261006-notification-language-2",
   "./config.js",
   "./fingerprint-icon-192.png",
   "./fingerprint-icon-512.png"
