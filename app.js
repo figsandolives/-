@@ -1,7 +1,8 @@
+import { renderMyDeductions } from "./my-deductions.js?v=20261006-my-deductions";
 import { CONFIG } from "./config.js?v=20260725-phone-login";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
-import { getDatabase, ref, get, set, push, update, onValue } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
+import { getDatabase, ref, get, set, push, update, onValue, query, orderByChild, orderByKey, startAt, endAt, equalTo } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
 
 const firebaseApp = initializeApp(CONFIG.firebase);
@@ -181,6 +182,7 @@ function applyLanguage() {
   if (employee) {
     if (currentView === "settings") renderSettings();
     else if (currentView === "services") renderServices();
+    else if (currentView === "my-deductions") openMyDeductions();
     else if (currentView === "notifications") renderNotifications();
     else renderHome();
   }
@@ -463,10 +465,16 @@ function bindBottomNavigation() {
   });
 }
 function renderServices() {
-  currentView = "services";
-  $("#employee-app").innerHTML = `<div class="inner-page under-development nav-page"><header><div><small>${t("بوابة الموظف")}</small><h1>${t("خدمات")}</h1></div></header><section><i class="fa-solid fa-wand-magic-sparkles"></i><h2>${t("قيد التطوير")}</h2></section></div>${bottomNavigation("services")}`;
-  bindBottomNavigation();
+ currentView="services";$("#employee-app").innerHTML=`<div class="inner-page nav-page services-page"><header><div><small>${t("بوابة الموظف")}</small><h1>${t("خدمات")}</h1></div></header><section class="services-grid"><button id="service-my-deductions" class="service-tile"><i class="fa-solid fa-wallet"></i><span>${language==="en"?"My deductions":"خصوماتي"}</span></button></section></div>${bottomNavigation("services")}`;bindBottomNavigation();$("#service-my-deductions").onclick=openMyDeductions;
 }
+function openMyDeductions(){currentView="my-deductions";const ownEmployee=employee;renderMyDeductions({employee:ownEmployee,container:$("#employee-app"),escapeHtml:esc,language:()=>language,today:()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuwait',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()),back:renderServices,navigation:()=>bottomNavigation("services"),bindNavigation:bindBottomNavigation,toast:showToast,isCurrent:()=>currentView==="my-deductions"&&employee?.id===ownEmployee.id,readPeriod:async()=> (await get(ref(db,`${ROOT}/settings/payrollPeriod`))).val()||{},readBook:async id=>{const book=(await get(ref(db,`${ROOT}/deductions/${id}`))).val();if(book?.employeeId!==ownEmployee.id)throw new Error(language==="en"?"Letter unavailable":"الكتاب غير متاح");return(await get(ref(db,`${ROOT}/deductionFiles/${id}`))).val();},readData:async(start,end)=>{
+ const dayKeys=[];for(let date=new Date(`${start}T12:00:00+03:00`);date<=new Date(`${end}T12:00:00+03:00`);date.setUTCDate(date.getUTCDate()+1))dayKeys.push(date.toISOString().slice(0,10));
+ const [scheduleSnap,bookSnap,exemptionSnap,legacyIds,legacyNames,...attendanceSnaps]=await Promise.all([get(query(ref(db,`${ROOT}/schedules`),orderByKey(),startAt(start),endAt(end))),get(query(ref(db,`${ROOT}/deductions`),orderByChild("employeeId"),equalTo(ownEmployee.id))),get(query(ref(db,`${ROOT}/payrollExemptions`),orderByChild("employeeId"),equalTo(ownEmployee.id))),get(query(ref(db,"fingerprintPunches"),orderByChild("empId"),equalTo(ownEmployee.id))),get(query(ref(db,"fingerprintPunches"),orderByChild("empName"),equalTo(ownEmployee.fullName))),...dayKeys.map(date=>get(ref(db,`${ROOT}/attendance/${date}/${ownEmployee.id}`)))]);
+ const schedules=Object.fromEntries(Object.entries(scheduleSnap.val()||{}).map(([date,schedule])=>[date,{assignments:Object.fromEntries(Object.entries(schedule.assignments||{}).filter(([,a])=>a.employeeId===ownEmployee.id))}])),attendance=Object.fromEntries(attendanceSnaps.map((snap,i)=>[dayKeys[i],{[ownEmployee.id]:snap.val()||{}}])),penalties={};
+ const notices=employeeNotifications.filter(n=>n.type==="salary_deduction"&&n.scheduleDate>=start&&n.scheduleDate<=end);await Promise.all(notices.map(async n=>{const id=n.id.replace(/^salary-/,""),value=(await get(ref(db,`${ROOT}/attendanceDeductions/${n.scheduleDate}/${id}`))).val();if(value?.employeeId===ownEmployee.id){penalties[n.scheduleDate]??={};penalties[n.scheduleDate][id]=value;}}));
+ return{schedules,attendance,legacy:{...(legacyIds.val()||{}),...(legacyNames.val()||{})},books:Object.entries(bookSnap.val()||{}).map(([id,value])=>({id,...value})),penalties,exemptions:exemptionSnap.val()||{}};
+ }});}
+
 async function markNotificationsRead() {
   const unread = unreadNotifications();
   if (!unread.length) return;
