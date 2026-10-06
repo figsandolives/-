@@ -50,3 +50,5 @@
 }
 
 .notification-tabs{display:flex;gap:6px;margin:15px 0}.notification-tabs button{flex:1;padding:12px 5px;border:1px solid #d4e5e5;border-radius:10px;background:white;color:#24465b;font-size:12px;font-weight:700}.notification-tabs button.active{background:#0f766e;color:white}.deduction-notification-details{padding:15px;white-space:pre-wrap}.deduction-file-actions{display:flex;gap:10px}.deduction-file-actions button{padding:10px 16px;border:1px solid #0f766e;border-radius:9px;background:#effaf8;color:#0f766e}
+
+.notification-card.attendance-alert-notification .deduction-notification-details{color:#a62535;font-weight:700;line-height:1.8}.notification-card.attendance-alert-notification .deduction-file-actions button{border-color:#ef9da7;background:#fff0f3;color:#a62535}
